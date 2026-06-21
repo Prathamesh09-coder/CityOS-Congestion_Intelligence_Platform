@@ -550,7 +550,9 @@ def compute_text_embedding_sync(description: str, comment: str) -> np.ndarray:
     if text_model is None or text_tokenizer is None:
         # Fallback to realistic random/pseudo embedding if transformers failed to load
         logger.warning("Embedder model offline; returning pseudo-random text embedding.")
-        rng = np.random.RandomState(hash(text) % (2**32))
+        import hashlib
+        hash_val = int(hashlib.md5(text.encode("utf-8")).hexdigest(), 16)
+        rng = np.random.RandomState(hash_val % (2**32))
         return rng.randn(384).astype(np.float64)
 
     import torch
@@ -714,8 +716,12 @@ def predict_closure(payload: ClosurePayload) -> dict[str, Any]:
             "global_fallback": 0.08
         }
         prob = sim_probs.get(cause_g, 0.12)
-        # add a small random variation
-        prob = max(0.01, min(0.99, prob + np.random.uniform(-0.05, 0.05)))
+        # Seed RNG based on description to make it deterministic
+        import hashlib
+        desc = payload.description or ""
+        seed = int(hashlib.md5(desc.encode("utf-8")).hexdigest(), 16) % (2**32)
+        rng = np.random.RandomState(seed)
+        prob = max(0.01, min(0.99, prob + rng.uniform(-0.05, 0.05)))
         thresh = cause_thresholds.get(cause_g, 0.15) if cause_thresholds else 0.15
         return {
             "closure_required": prob >= thresh,
@@ -804,7 +810,12 @@ def predict_duration(payload: DurationPayload) -> dict[str, Any]:
         logger.warning("M2 acute model offline. Simulating duration.")
         base_durations = {"vehicle_breakdown": 0.8, "accident": 0.8, "congestion": 1.2, "procession": 0.9, "protest": 3.4}
         base_hrs = base_durations.get(event_cause, 1.0)
-        est = max(0.1, base_hrs + np.random.uniform(-0.2, 0.2))
+        
+        import hashlib
+        desc = payload.description or ""
+        seed = int(hashlib.md5(desc.encode("utf-8")).hexdigest(), 16) % (2**32)
+        rng = np.random.RandomState(seed)
+        est = max(0.1, base_hrs + rng.uniform(-0.2, 0.2))
         return {
             "regime": "acute",
             "estimated_duration_hrs": round(est, 2),
@@ -815,7 +826,12 @@ def predict_duration(payload: DurationPayload) -> dict[str, Any]:
         logger.warning("M2 chronic survival model offline. Simulating duration.")
         base_durations = {"pot_holes": 18.7, "water_logging": 14.1, "construction": 13.3, "road_conditions": 10.9, "tree_fall": 10.6}
         base_hrs = base_durations.get(event_cause, 5.0)
-        est = max(0.5, base_hrs + np.random.uniform(-2.0, 2.0))
+        
+        import hashlib
+        desc = payload.description or ""
+        seed = int(hashlib.md5(desc.encode("utf-8")).hexdigest(), 16) % (2**32)
+        rng = np.random.RandomState(seed)
+        est = max(0.5, base_hrs + rng.uniform(-2.0, 2.0))
         return {
             "regime": "chronic",
             "estimated_duration_hrs": round(est, 2),
@@ -865,7 +881,11 @@ def predict_duration(payload: DurationPayload) -> dict[str, Any]:
             
             # Map survival risk score back to a realistic duration in hours (e.g. baseline 10hrs + scaling)
             # High risk score = lower survival duration, but here the metric risk is correlated with duration
-            est_hrs = max(2.0, 10.0 + risk_score * 8.0 + np.random.uniform(-1.0, 1.0))
+            import hashlib
+            desc = payload.description or ""
+            seed = int(hashlib.md5(desc.encode("utf-8")).hexdigest(), 16) % (2**32)
+            rng = np.random.RandomState(seed)
+            est_hrs = max(2.0, 10.0 + risk_score * 8.0 + rng.uniform(-1.0, 1.0))
 
             return {
                 "regime": "chronic",
@@ -1038,8 +1058,11 @@ def predict_traffic(payload: TrafficPayload) -> dict[str, Any]:
     speed_mult = 0.55 if is_peak else 0.90
     flow_mult = 1.65 if is_peak else 1.0
 
-    predicted_speed = max(5.0, base_speed * speed_mult + np.random.uniform(-3.0, 3.0))
-    predicted_flow = max(100.0, 800.0 * flow_mult + np.random.uniform(-100.0, 100.0))
+    # Seed RNG based on coordinates and datetime to make it deterministic
+    seed = int(lat * 10000 + lng * 10000 + hour) % (2**32)
+    rng = np.random.RandomState(seed)
+    predicted_speed = max(5.0, base_speed * speed_mult + rng.uniform(-3.0, 3.0))
+    predicted_flow = max(100.0, 800.0 * flow_mult + rng.uniform(-100.0, 100.0))
     predicted_delay_min = max(0.5, (base_speed / predicted_speed) * 8.0 - 8.0)
 
     # Blend with GNN model forecast if available

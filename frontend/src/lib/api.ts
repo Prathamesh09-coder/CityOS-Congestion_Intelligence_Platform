@@ -119,8 +119,9 @@ export async function predictClosure(payload: ClosurePayload): Promise<ClosureRe
     else if (["public_event", "procession"].includes(cause)) prob = 0.65;
     else if (["water_logging", "construction"].includes(cause)) prob = 0.35;
     
-    // Add random factor
-    prob = Math.max(0.01, Math.min(0.99, prob + (Math.random() * 0.1 - 0.05)));
+    // Deterministic variation based on input length
+    const seed = (p.description.length + p.corridor.length) % 10;
+    prob = Math.max(0.01, Math.min(0.99, prob + (seed / 100 - 0.05)));
     const thresh = 0.15;
     return {
       closure_required: prob >= thresh,
@@ -154,12 +155,15 @@ export async function predictDuration(payload: DurationPayload): Promise<Duratio
       tree_fall: 10.6,
     };
     const baseHrs = baseDurations[cause] ?? 1.5;
-    const est = Math.max(0.1, baseHrs + (Math.random() * 0.2 - 0.1) * baseHrs);
+    
+    // Deterministic variation based on input length
+    const seed = (p.description.length + p.corridor.length) % 10;
+    const est = Math.max(0.1, baseHrs + (seed / 50 - 0.1) * baseHrs);
 
     return {
       regime: isAcute ? "acute" : "chronic",
       estimated_duration_hrs: Number(est.toFixed(2)),
-      risk_score: isAcute ? undefined : Number((Math.random() * 0.5 + 0.1).toFixed(4)),
+      risk_score: isAcute ? undefined : Number((0.1 + (seed / 20)).toFixed(4)),
       model_mode: "simulated_local_fallback",
     };
   });
@@ -171,11 +175,11 @@ export async function predictDuration(payload: DurationPayload): Promise<Duratio
 export async function predictMultimodal(payload: MultimodalPayload): Promise<MultimodalResponse> {
   return callApi<MultimodalPayload, MultimodalResponse>("predict/multimodal", payload, (p) => {
     const length = p.description.length;
-    const rng = Math.random();
+    const seed = (length + (p.comment?.length ?? 0)) % 100;
     return {
       text_length: length,
-      zero_shot_risk_score: Number((rng * 100).toFixed(1)),
-      prediction_confidence: Number((72 + rng * 20).toFixed(1)),
+      zero_shot_risk_score: seed,
+      prediction_confidence: Number((72 + (seed * 0.2)).toFixed(1)),
       cause_inferred: p.event_cause ?? "inferred",
       model_mode: "simulated_local_fallback",
     };
@@ -187,13 +191,19 @@ export async function predictMultimodal(payload: MultimodalPayload): Promise<Mul
  */
 export async function predictTraffic(payload: TrafficPayload): Promise<TrafficResponse> {
   return callApi<TrafficPayload, TrafficResponse>("predict/traffic", payload, (p) => {
-    const isPeak = Math.random() > 0.5;
-    const baseSpeed = 24.0;
-    const predSpeed = Math.max(5, baseSpeed * (isPeak ? 0.6 : 0.9) + (Math.random() * 6 - 3));
-    const predFlow = Math.round((isPeak ? 1300 : 750) + (Math.random() * 200 - 100));
-    const delay = Math.max(0.5, (baseSpeed / predSpeed) * 8.0 - 8.0);
     const lat = p.lat[0] ?? 12.9716;
     const lng = p.lng[0] ?? 77.5946;
+    // Deterministic peak hour check
+    const reportedTime = new Date(p.reported_datetime);
+    const hr = reportedTime.getHours();
+    const isPeak = (hr >= 5 && hr <= 6) || (hr >= 19 && hr <= 21);
+    
+    const baseSpeed = 24.0;
+    const seed = Math.round(lat * 10000 + lng * 10000) % 10;
+    
+    const predSpeed = Math.max(5, baseSpeed * (isPeak ? 0.6 : 0.9) + (seed / 3 - 1.5));
+    const predFlow = Math.round((isPeak ? 1300 : 750) + (seed * 20 - 100));
+    const delay = Math.max(0.5, (baseSpeed / predSpeed) * 8.0 - 8.0);
 
     return {
       junction: "Fallback Snapped Junction",
