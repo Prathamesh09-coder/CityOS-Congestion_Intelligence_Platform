@@ -1,0 +1,47 @@
+# M4 — Graph Spatio-Temporal Backbone Configuration
+# ⚠️  STUB / ARCHITECTURE VALIDATION ONLY
+# This model requires external live traffic-speed data that is NOT available
+# in the ASTRAM event log CSV. Results from this module are NOT real model
+# performance — they are architecture validation against synthetic node features.
+
+experiment_name: "m4_gnn_backbone"
+is_stub: true  # Explicit flag — this is NOT a production model
+
+# OSM road graph construction
+graph:
+  place_name: "Bengaluru, India"
+  network_type: "drive"
+  simplify: true
+  # Use the shared cached graph from data/interim/
+  cache_path: "data/interim/bengaluru_road_graph.graphml.gz"
+
+# GNN architecture (Graph WaveNet / DSTAGNN-style)
+model:
+  architecture: "graph_wavenet"
+  num_nodes: null          # Set dynamically from graph
+  in_channels: 4           # Synthetic: [speed, flow, hour_sin, hour_cos]
+  out_channels: 1          # Predict: congestion_index
+  hidden_channels: 32
+  num_layers: 3
+  temporal_kernel_size: 3
+  dropout: 0.3
+
+# Training (on synthetic data — architecture validation only)
+training:
+  synthetic_signal: true   # ⚠️  Using synthetic data, NOT real traffic
+  num_timesteps: 168       # 1 week of hourly data (toy)
+  batch_size: 32
+  epochs: 10
+  learning_rate: 0.001
+
+# Required external data (NOT available in current dataset)
+# To make this model production-ready, you need:
+#   1. Real-time traffic speed from Google Maps Traffic API / HERE / TomTom
+#   2. Historical speed data matched to the event log time range
+#   3. Loop detector / probe data from BTRAC or BMTC feeds
+external_data_requirements:
+  - "Live traffic speed per road segment (5-min or 15-min granularity)"
+  - "Historical speed data covering Nov 2023 – Apr 2024"
+  - "Road segment IDs matching OSM way IDs"
+
+seed: 42

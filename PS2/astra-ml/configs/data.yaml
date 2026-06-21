@@ -1,0 +1,65 @@
+# ASTRA ML — Data Pipeline Configuration
+# All paths relative to project root (astra-ml/)
+
+paths:
+  raw_csv: "data/raw/astram_events.csv"
+  interim_dir: "data/interim"
+  processed_dir: "data/processed"
+  interim_parquet: "data/interim/events_typed.parquet"
+  cleaned_parquet: "data/interim/events_cleaned.parquet"
+  geo_imputed_parquet: "data/interim/events_geo_imputed.parquet"
+  featured_parquet: "data/processed/events_featured.parquet"
+  splits_parquet: "data/processed/events_splits.parquet"
+  osm_graph_cache_path: "data/interim/bengaluru_road_graph.graphml.gz"
+
+# Column renaming: CSV column name → canonical name
+column_rename:
+  id: event_id
+  event_type: planned_flag
+  veh_type: vehicle_type
+  veh_no: vehicle_number
+  start_datetime: reported_datetime
+  end_datetime: end_datetime
+
+# Values treated as null during CSV ingestion
+null_values:
+  - "NULL"
+  - ""
+  - "null"
+  - "None"
+
+# Temporal train/val/test split boundaries (IST dates)
+splits:
+  train_end: "2024-02-15"
+  val_end: "2024-03-15"
+  # Everything after val_end is test
+
+# Duration regime assignment by event_cause
+duration_regimes:
+  acute:
+    - vehicle_breakdown
+    - accident
+    - congestion
+    - procession
+    - protest
+  chronic:
+    - pot_holes
+    - road_conditions
+    - water_logging
+    - construction
+    - debris
+
+# Geo-imputation settings
+geo_impute:
+  enabled: true
+  zone_boundary_source: "approximate_clustering"  # or path to a shapefile
+  osm_network_type: "drive"
+  osm_place: "Bengaluru, India"
+  junction_snap_tolerance_meters: 500
+
+# Target encoding settings (for feature engineering)
+target_encoding:
+  n_splits: 5  # K-fold target encoding to prevent leakage
+  smoothing: 10.0  # Smoothing factor for target encoding
+
+seed: 42

@@ -1,0 +1,202 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/* ===== CityOS Design System ===== */
+
+[data-theme="light"] {
+  --color-bg: #F4F6FB;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #EEF1F8;
+  --color-border: #D1D9E6;
+  --color-primary: #2874F0;
+  --color-primary-dark: #1A5DC8;
+  --color-primary-light: #E8F0FE;
+  --color-text-primary: #0D1B2A;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #8A97A8;
+  --color-success: #16A34A;
+  --color-success-light: #DCFCE7;
+  --color-warning: #D97706;
+  --color-warning-light: #FEF3C7;
+  --color-critical: #DC2626;
+  --color-critical-light: #FEE2E2;
+  --color-ai-accent: #7C3AED;
+  --color-ai-accent-light: #EDE9FE;
+  --color-command-bar: #FFFFFF;
+  --color-command-bar-border: #D1D9E6;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-copilot: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --map-bg: #EAEEF4;
+  --map-road: #D1D9E6;
+  --map-road-major: #B0BEC5;
+  --map-label: #4A5568;
+}
+
+[data-theme="dark"] {
+  --color-bg: #0F1117;
+  --color-surface: #1A1F2E;
+  --color-surface-elevated: #222736;
+  --color-border: #2E3549;
+  --color-primary: #4D8EF8;
+  --color-primary-dark: #3A73D9;
+  --color-primary-light: #1C2847;
+  --color-text-primary: #E8ECF4;
+  --color-text-secondary: #8A97B8;
+  --color-text-muted: #5C6880;
+  --color-success: #22C55E;
+  --color-success-light: #0F2E1A;
+  --color-warning: #F59E0B;
+  --color-warning-light: #2C1F07;
+  --color-critical: #EF4444;
+  --color-critical-light: #2C0F0F;
+  --color-ai-accent: #A855F7;
+  --color-ai-accent-light: #1E1033;
+  --color-command-bar: #13171F;
+  --color-command-bar-border: #1E2333;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-copilot: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --map-bg: #0B0E15;
+  --map-road: #2E3549;
+  --map-road-major: #3D4A63;
+  --map-label: #8A97B8;
+}
+
+/* shadcn legacy tokens map to CityOS so components inherit theme */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-muted: var(--color-surface-elevated);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-surface-elevated);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-secondary: var(--color-surface-elevated);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-primary);
+  --color-destructive: var(--color-critical);
+  --color-destructive-foreground: #ffffff;
+  --color-sidebar: var(--color-surface);
+  --color-sidebar-foreground: var(--color-text-primary);
+  --color-sidebar-primary: var(--color-primary);
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: var(--color-surface-elevated);
+  --color-sidebar-accent-foreground: var(--color-text-primary);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-ring: var(--color-primary);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+}
+
+:root {
+  --radius: 0.625rem;
+  --primary: var(--color-primary);
+  --primary-foreground: #ffffff;
+  --border: var(--color-border);
+}
+
+html,
+body,
+#root {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  border-color: var(--color-border);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    fill 0.25s ease,
+    stroke 0.25s ease;
+}
+
+/* ===== Reusable utility classes ===== */
+.cityos-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+.cityos-card:hover { box-shadow: var(--shadow-card-hover); }
+
+.cityos-panel-header {
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cityos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.cityos-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 12px 0;
+}
+
+/* ===== Animations ===== */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.pulse-ring {
+  animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  transform-origin: center;
+}
+
+@keyframes live-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+.live-dot { animation: live-dot 1.5s ease-in-out infinite; }
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-up { animation: count-up 0.5s ease-out both; }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide-up { animation: slide-up 0.4s ease-out both; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+input, select, textarea, button { font-family: inherit; }
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 { color: var(--color-text-primary); }
+}

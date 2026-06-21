@@ -1,0 +1,15 @@
+{
+  "imputation": {
+    "total_records": 8173,
+    "junction_null_before": 5663,
+    "junction_null_after": 0,
+    "zone_null_before": 4729,
+    "zone_null_after": 0
+  },
+  "duration_source": {
+    "total": 8173,
+    "none": 4964,
+    "resolved_datetime": 68,
+    "closed_datetime": 3141
+  }
+}

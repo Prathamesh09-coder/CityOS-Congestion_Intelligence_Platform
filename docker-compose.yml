@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./PS2/astra-ml
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - KMP_DUPLICATE_LIB_OK=TRUE
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:3000"
+    depends_on:
+      - backend
+    restart: always

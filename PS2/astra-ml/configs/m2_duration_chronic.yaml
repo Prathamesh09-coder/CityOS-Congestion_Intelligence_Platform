@@ -1,0 +1,56 @@
+# M2 — Chronic-Regime Duration Estimator (Survival Analysis) Configuration
+
+experiment_name: "m2_duration_chronic"
+
+# Chronic-regime event causes (long-duration, ~4.5 day median / ~15 day mean)
+chronic_causes:
+  - pot_holes
+  - road_conditions
+  - water_logging
+  - construction
+  - debris
+
+# Survival analysis target: (event_observed: bool, duration_days: float)
+# Right-censor records where closed_datetime AND resolved_datetime are both null
+target_event_col: "event_observed"
+target_duration_col: "duration_days"
+
+# Data cutoff date for censoring (last date in dataset)
+data_cutoff_date: "2024-04-08"
+
+features:
+  - event_cause
+  - corridor
+  - priority
+  - hour_sin
+  - hour_cos
+  - dow_sin
+  - dow_cos
+  - cause_closure_rate
+  - corridor_closure_rate
+  - requires_road_closure
+  - junction_missing
+  - zone_missing
+  - description_len
+  - is_weekend
+  - month
+  - is_public_holiday
+  - days_to_nearest_holiday
+
+# Gradient Boosted Survival Trees (primary)
+gbst:
+  n_estimators: 200
+  learning_rate: 0.1
+  max_depth: 4
+  min_samples_split: 10
+  min_samples_leaf: 5
+  subsample: 0.8
+
+# Cox Proportional Hazards with elastic net (alternative)
+coxnet:
+  n_alphas: 100
+  l1_ratio: 0.5  # Elastic net mixing (0=Ridge, 1=Lasso)
+  max_iter: 1000
+  fit_baseline_model: true
+
+seed: 42

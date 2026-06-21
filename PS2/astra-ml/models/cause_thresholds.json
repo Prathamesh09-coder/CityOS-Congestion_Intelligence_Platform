@@ -1,0 +1,15 @@
+{
+    "vip_movement": 0.08999999999999998,
+    "public_event": 0.08999999999999998,
+    "protest": 0.08999999999999998,
+    "procession": 0.08999999999999998,
+    "construction": 0.03,
+    "tree_fall": 0.03,
+    "road_conditions": 0.03,
+    "vehicle_breakdown": 0.06999999999999999,
+    "accident": 0.06999999999999999,
+    "pot_holes": 0.06999999999999999,
+    "water_logging": 0.06999999999999999,
+    "debris": 0.06999999999999999,
+    "congestion": 0.06999999999999999
+}

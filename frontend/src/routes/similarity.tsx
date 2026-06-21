@@ -1,0 +1,164 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Search, Sparkles } from "lucide-react";
+import { AppShell } from "@/components/cityos/AppShell";
+import { Card, PanelHeader, Badge, Button, Field, Select, ProgressBar, PageHeader } from "@/components/cityos/primitives";
+import { CORRIDORS, EVENT_CAUSES, ZONES, causeMeta } from "@/lib/cityos-data";
+
+export const Route = createFileRoute("/similarity")({
+  head: () => ({
+    meta: [
+      { title: "Event Similarity Engine · CityOS" },
+      { name: "description", content: "Find the most similar historical events to a new incident and surface an evidence-cited recommendation." },
+    ],
+  }),
+  component: Similarity,
+});
+
+function generateResults(cause: string, corridor: string, priority: "High" | "Low") {
+  const meta = causeMeta(cause);
+  const rows = Array.from({ length: 8 }).map((_, i) => {
+    const sim = 96 - i * 4;
+    const closure = Math.random() < meta.closurePct / 100;
+    const peak = i % 3 === 0;
+    return {
+      id: `FKID000${(412 + i * 13).toString().padStart(3, "0")}`,
+      sim,
+      cause: meta.label,
+      corridor,
+      priority,
+      closure,
+      duration: meta.avgHrs,
+      status: i % 5 === 0 ? "—" : "closed",
+      peak,
+      officers: 3 + (priority === "High" ? 4 : 0),
+      barricades: closure ? 2 + (priority === "High" ? 2 : 0) : 0,
+    };
+  });
+  return rows;
+}
+
+function Similarity() {
+  const [cause, setCause] = useState("vehicle_breakdown");
+  const [corridor, setCorridor] = useState("Mysore Road");
+  const [zone, setZone] = useState(ZONES[0]);
+  const [priority, setPriority] = useState<"High" | "Low">("High");
+  const [type, setType] = useState<"planned" | "unplanned">("unplanned");
+
+  const meta = causeMeta(cause);
+  const rows = generateResults(cause, corridor, priority);
+  const recOff = priority === "High" ? "3–5" : "2–3";
+  const recBar = meta.closurePct > 30 ? "12–18" : "1–2";
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Event Similarity Engine"
+        subtitle="Given a new event's fingerprint, find the most similar historical events using cosine/Jaccard similarity on encoded features."
+      />
+
+      <Card padded={false}>
+        <PanelHeader title="Find Similar Historical Events" right={<Search size={14} style={{ color: "var(--color-text-muted)" }} />} />
+        <div style={{ padding: 18, display: "grid", gridTemplateColumns: "repeat(5, 1fr) auto", gap: 12, alignItems: "end" }}>
+          <Field label="Event Type">
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["planned", "unplanned"] as const).map((t) => (
+                <button key={t} onClick={() => setType(t)} style={{
+                  flex: 1, padding: "8px", borderRadius: 99, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  border: `1px solid ${type === t ? "var(--color-primary)" : "var(--color-border)"}`,
+                  background: type === t ? "var(--color-primary)" : "var(--color-surface)",
+                  color: type === t ? "#fff" : "var(--color-text-secondary)",
+                }}>{t}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Event Cause">
+            <Select value={cause} onChange={setCause} options={EVENT_CAUSES.map((c) => ({ value: c.value, label: c.label }))} />
+          </Field>
+          <Field label="Corridor">
+            <Select value={corridor} onChange={setCorridor} options={CORRIDORS.map((c) => ({ value: c.name, label: c.name }))} />
+          </Field>
+          <Field label="Zone">
+            <Select value={zone} onChange={setZone} options={ZONES.map((z) => ({ value: z, label: z }))} />
+          </Field>
+          <Field label="Priority">
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["High", "Low"] as const).map((p) => (
+                <button key={p} onClick={() => setPriority(p)} style={{
+                  flex: 1, padding: "8px", borderRadius: 99, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  border: `1px solid ${priority === p ? "var(--color-primary)" : "var(--color-border)"}`,
+                  background: priority === p ? "var(--color-primary)" : "var(--color-surface)",
+                  color: priority === p ? "#fff" : "var(--color-text-secondary)",
+                }}>{p}</button>
+              ))}
+            </div>
+          </Field>
+          <Button><Search size={14} /> Search</Button>
+        </div>
+      </Card>
+
+      {/* AI Recommendation Banner */}
+      <div
+        className="slide-up"
+        style={{
+          marginTop: 16,
+          background: "var(--color-ai-accent-light)",
+          border: "1px solid var(--color-ai-accent)",
+          borderRadius: 10,
+          padding: "14px 18px",
+          display: "flex", gap: 12, alignItems: "flex-start",
+        }}
+      >
+        <Sparkles size={20} style={{ color: "var(--color-ai-accent)", flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.5 }}>
+          Based on <b>{meta.count} similar {meta.label.toLowerCase()} events</b> on {corridor} with <b>{priority}</b> priority,
+          predicted duration is <b style={{ color: "var(--color-ai-accent)" }}>{meta.avgHrs} hrs</b>.
+          Road closure required in <b>{meta.closurePct}%</b> of cases.
+          Recommend <b>{recOff} officers</b> and <b>{recBar} barricades</b>.
+        </div>
+      </div>
+
+      {/* Results Table */}
+      <Card padded={false} style={{ marginTop: 16 }}>
+        <PanelHeader title="Most Similar Historical Events" right={<Badge kind="ai">{rows.length} matches</Badge>} />
+        <div style={{ overflow: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: "var(--color-surface-elevated)" }}>
+                {["Event ID", "Similarity", "Cause", "Corridor", "Priority", "Closure", "Duration", "Status", "Time", "AI Officers", "AI Barricades"].map((h) => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.id} style={{ background: i % 2 === 0 ? "var(--color-surface)" : "var(--color-bg)", borderTop: "1px solid var(--color-border)" }}>
+                  <td style={{ padding: "10px 12px", fontFamily: "ui-monospace, monospace", color: "var(--color-text-secondary)" }}>{r.id}</td>
+                  <td style={{ padding: "10px 12px", minWidth: 140 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 60 }}><ProgressBar value={r.sim} color="var(--color-primary)" /></div>
+                      <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{r.sim}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 12px", color: "var(--color-text-primary)" }}>{r.cause}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--color-text-primary)" }}>{r.corridor}</td>
+                  <td style={{ padding: "10px 12px" }}><Badge kind={r.priority === "High" ? "high" : "low"}>{r.priority}</Badge></td>
+                  <td style={{ padding: "10px 12px" }}>{r.closure ? <Badge kind="closure">Yes</Badge> : <span style={{ color: "var(--color-text-muted)" }}>No</span>}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--color-text-primary)" }}>{r.duration} hrs</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {r.status === "closed" ? <Badge kind="resolved">closed</Badge> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>{r.peak ? <Badge kind="warning">Peak</Badge> : <span style={{ color: "var(--color-text-muted)" }}>off-peak</span>}</td>
+                  <td style={{ padding: "10px 12px" }}><Badge kind="ai">{r.officers}</Badge></td>
+                  <td style={{ padding: "10px 12px" }}><Badge kind="ai">{r.barricades}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </AppShell>
+  );
+}

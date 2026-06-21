@@ -1,0 +1,51 @@
+# OS Metadata
+.DS_Store
+Thumbs.db
+db.lock
+
+# Dependency Directories
+node_modules/
+jspm_packages/
+web_modules/
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Build and Output Folders
+dist/
+dist-ssr/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+.vercel/
+build/
+out/
+
+# Python Cache & Testing
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+.poetry/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Machine Learning & Tracking
+mlruns/
+catboost_info/
+lightning_logs/
+
+# Large Model Weights (exceeding GitHub's 100MB limit)
+PS2/astra-ml/models/m3_model.pth
+PS2/astra-ml/data/interim/bengaluru_road_graph.graphml

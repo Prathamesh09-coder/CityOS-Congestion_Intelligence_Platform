@@ -1,0 +1,77 @@
+# M3 — Multimodal Sparse-Event Forecaster Configuration
+
+experiment_name: "m3_multimodal_sparse"
+
+# Pretrained text encoder (MuRIL preferred for Kannada/English mix)
+text_encoder:
+  model_name: "google/muril-base-cased"
+  max_length: 128
+  freeze_base: true  # Freeze all layers; only fine-tune LoRA adapters
+
+# LoRA configuration (peft)
+lora:
+  r: 8              # LoRA rank
+  lora_alpha: 16
+  lora_dropout: 0.1
+  target_modules:
+    - "query"
+    - "value"
+  # Only apply to top N transformer layers
+  layers_to_adapt: 2
+
+# Structured feature embedding
+structured_features:
+  categorical:
+    - event_cause
+    - priority
+    - corridor
+  numerical:
+    - hour_sin
+    - hour_cos
+    - dow_sin
+    - dow_cos
+    - cause_closure_rate
+    - corridor_closure_rate
+  embedding_dim: 32
+
+# Fusion MLP head
+fusion_head:
+  hidden_dims: [256, 128]
+  dropout: 0.3
+  activation: "gelu"
+
+# Text fields to concatenate as encoder input
+text_fields:
+  - description
+  - comment
+  - address
+
+# Multi-task output heads
+task_heads:
+  closure:
+    type: "binary_classification"
+    loss: "bce_with_logits"
+    weight: 1.0
+  duration:
+    type: "regression"
+    loss: "mse"
+    weight: 0.5  # Down-weight duration since it has more noise
+
+# Training
+training:
+  batch_size: 32
+  epochs: 5
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  early_stopping_patience: 2
+
+# Leave-one-cause-out evaluation on sparse classes
+loo_eval:
+  sparse_causes:
+    - vip_movement
+    - protest
+    - procession
+    - public_event
+
+seed: 42

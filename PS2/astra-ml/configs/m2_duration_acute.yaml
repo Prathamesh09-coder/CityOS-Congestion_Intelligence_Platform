@@ -1,0 +1,67 @@
+# M2 — Acute-Regime Duration Estimator Configuration
+
+experiment_name: "m2_duration_acute"
+
+# Acute-regime event causes (short-duration, ~50 min median)
+acute_causes:
+  - vehicle_breakdown
+  - accident
+  - congestion
+  - procession
+  - protest
+
+target: "log_duration_minutes"  # log-transformed duration
+
+features:
+  - event_cause
+  - corridor
+  - priority
+  - hour_sin
+  - hour_cos
+  - dow_sin
+  - dow_cos
+  - vehicle_type
+  - cause_closure_rate
+  - corridor_closure_rate
+  - requires_road_closure
+  - junction_missing
+  - zone_missing
+  - description_len
+  - comment_len
+  - is_weekend
+  - month
+
+# CatBoost regressor — Optuna search space
+catboost:
+  optuna_trials: 40
+  search_space:
+    learning_rate: [0.01, 0.3]
+    depth: [4, 10]
+    l2_leaf_reg: [1.0, 10.0]
+    iterations: [200, 800]
+  fixed:
+    task_type: "CPU"
+    verbose: 0
+    loss_function: "MAE"
+    cat_features:
+      - event_cause
+      - corridor
+      - priority
+      - vehicle_type
+
+# LightGBM regressor — Optuna search space
+lightgbm:
+  optuna_trials: 40
+  search_space:
+    learning_rate: [0.01, 0.3]
+    num_leaves: [15, 127]
+    max_depth: [3, 12]
+    min_child_samples: [5, 50]
+    reg_alpha: [0.0, 10.0]
+    reg_lambda: [0.0, 10.0]
+    n_estimators: [200, 800]
+  fixed:
+    objective: "mae"
+    verbose: -1
+
+seed: 42

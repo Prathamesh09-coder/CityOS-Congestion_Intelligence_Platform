@@ -1,0 +1,93 @@
+# M1 — Closure-Necessity Classifier Configuration
+
+experiment_name: "m1_closure_classifier"
+
+# Features used in the RandomForest baseline (exact set from the validated AUC 0.778 run)
+baseline_features:
+  - event_cause
+  - corridor
+  - priority
+  - hour
+  - day_of_week
+  - vehicle_type
+
+# Full feature set for challenger models (includes engineered features)
+challenger_features:
+  - event_cause
+  - corridor
+  - priority
+  - hour_sin
+  - hour_cos
+  - dow_sin
+  - dow_cos
+  - vehicle_type
+  - cause_closure_rate
+  - corridor_closure_rate
+  - junction_missing
+  - zone_missing
+  - closed_datetime_missing
+  - vehicle_type_missing
+  - zone_imputed
+  - junction_imputed
+  - description_len
+  - comment_len
+  - is_weekend
+  - month
+  - has_blocked_lane
+  - needs_towing
+  - heavy_vehicle
+  - is_public_holiday
+  - days_to_nearest_holiday
+
+target: "requires_road_closure"
+
+# RandomForest baseline
+random_forest:
+  n_estimators: 200
+  class_weight: "balanced"
+  max_depth: null
+  min_samples_leaf: 5
+  random_state: 42
+
+# CatBoost challenger — Optuna search space
+catboost:
+  optuna_trials: 15
+  search_space:
+    learning_rate: [0.01, 0.3]       # log-uniform
+    depth: [4, 7]                     # int
+    l2_leaf_reg: [1.0, 10.0]          # uniform
+    iterations: [200, 500]            # int step 100
+    border_count: [32, 255]            # int
+  fixed:
+    task_type: "CPU"
+    verbose: 0
+    auto_class_weights: "Balanced"
+    cat_features:
+      - event_cause
+      - corridor
+      - priority
+      - vehicle_type
+
+
+# LightGBM challenger — Optuna search space
+lightgbm:
+  optuna_trials: 15
+
+  search_space:
+    learning_rate: [0.01, 0.3]
+    num_leaves: [15, 127]
+    max_depth: [3, 12]
+    min_child_samples: [5, 100]
+    reg_alpha: [0.0, 10.0]
+    reg_lambda: [0.0, 10.0]
+    n_estimators: [200, 1000]
+  imbalance_strategies:
+    - "scale_pos_weight"
+    - "smotenc"
+
+# Evaluation
+evaluation:
+  operational_recall_target: 0.85  # Favor recall — missed closure > false alarm
+  cv_folds: 5  # Stratified K-Fold for HPO inner loop (time-based for final eval)
+
+seed: 42
