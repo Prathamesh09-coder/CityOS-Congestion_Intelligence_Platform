@@ -399,41 +399,69 @@ def load_assets() -> None:
 
     # Load road graph and build KDTree
     try:
-        from astra_ml.data.road_graph import get_or_build_road_graph
         from scipy.spatial import KDTree
+        import json
         
-        logger.info("Loading OSM road graph for spatial lookup...")
-        road_graph = get_or_build_road_graph()
-        logger.info("Road graph loaded successfully!")
+        m4_coords_json_path = models_dir / "m4_nodes_coords.json"
         
-        # Build KDTree for m4_nodes if they exist
-        m4_coords = []
-        if m4_nodes:
-            for idx, node_id in enumerate(m4_nodes):
-                node_key = node_id
-                if not road_graph.has_node(node_key):
-                    try:
-                        node_key = int(node_id)
-                    except ValueError:
-                        pass
-                if road_graph.has_node(node_key):
-                    node_data = road_graph.nodes[node_key]
-                    lat_val = node_data.get('y') or node_data.get('lat')
-                    lng_val = node_data.get('x') or node_data.get('lon') or node_data.get('lng')
-                    if lat_val is not None and lng_val is not None:
-                        m4_coords.append([float(lat_val), float(lng_val)])
-                        m4_coords_map.append((float(lat_val), float(lng_val)))
-                        continue
-                # Default coordinates for fallback
-                fallback_coords = MOCK_JUNCTIONS_COORDS.get(list(MOCK_JUNCTIONS_COORDS.keys())[idx % len(MOCK_JUNCTIONS_COORDS)])
-                m4_coords.append(list(fallback_coords))
-                m4_coords_map.append(fallback_coords)
+        if m4_coords_json_path.exists():
+            logger.info("Found precalculated GNN node coordinates at %s. Loading directly (bypassing heavy road graph)...", m4_coords_json_path)
+            with open(m4_coords_json_path, "r") as f:
+                precalc_coords = json.load(f)
             
-            if m4_coords:
-                m4_kdtree = KDTree(m4_coords)
-                logger.info("Built KDTree for %d GNN nodes", len(m4_coords))
+            m4_coords = []
+            if m4_nodes:
+                for idx, node_id in enumerate(m4_nodes):
+                    node_id_str = str(node_id)
+                    if node_id_str in precalc_coords:
+                        coords = precalc_coords[node_id_str]
+                        m4_coords.append(coords)
+                        m4_coords_map.append((coords[0], coords[1]))
+                    else:
+                        # Default coordinates for fallback
+                        fallback_coords = MOCK_JUNCTIONS_COORDS.get(list(MOCK_JUNCTIONS_COORDS.keys())[idx % len(MOCK_JUNCTIONS_COORDS)])
+                        m4_coords.append(list(fallback_coords))
+                        m4_coords_map.append(fallback_coords)
+                
+                if m4_coords:
+                    m4_kdtree = KDTree(m4_coords)
+                    logger.info("Built KDTree for %d GNN nodes using precalculated coordinates", len(m4_coords))
+            else:
+                logger.warning("No GNN nodes loaded from M4 checkpoint; KDTree build skipped.")
         else:
-            logger.warning("No GNN nodes loaded from M4 checkpoint; KDTree build skipped.")
+            logger.info("Precalculated GNN node coordinates not found. Falling back to loading full OSM road graph...")
+            from astra_ml.data.road_graph import get_or_build_road_graph
+            road_graph = get_or_build_road_graph()
+            logger.info("Road graph loaded successfully!")
+            
+            # Build KDTree for m4_nodes if they exist
+            m4_coords = []
+            if m4_nodes:
+                for idx, node_id in enumerate(m4_nodes):
+                    node_key = node_id
+                    if not road_graph.has_node(node_key):
+                        try:
+                            node_key = int(node_id)
+                        except ValueError:
+                            pass
+                    if road_graph.has_node(node_key):
+                        node_data = road_graph.nodes[node_key]
+                        lat_val = node_data.get('y') or node_data.get('lat')
+                        lng_val = node_data.get('x') or node_data.get('lon') or node_data.get('lng')
+                        if lat_val is not None and lng_val is not None:
+                            m4_coords.append([float(lat_val), float(lng_val)])
+                            m4_coords_map.append((float(lat_val), float(lng_val)))
+                            continue
+                    # Default coordinates for fallback
+                    fallback_coords = MOCK_JUNCTIONS_COORDS.get(list(MOCK_JUNCTIONS_COORDS.keys())[idx % len(MOCK_JUNCTIONS_COORDS)])
+                    m4_coords.append(list(fallback_coords))
+                    m4_coords_map.append(fallback_coords)
+                
+                if m4_coords:
+                    m4_kdtree = KDTree(m4_coords)
+                    logger.info("Built KDTree for %d GNN nodes", len(m4_coords))
+            else:
+                logger.warning("No GNN nodes loaded from M4 checkpoint; KDTree build skipped.")
     except Exception as e:
         logger.error("Failed to load road graph or build KDTree: %s", e, exc_info=True)
 
