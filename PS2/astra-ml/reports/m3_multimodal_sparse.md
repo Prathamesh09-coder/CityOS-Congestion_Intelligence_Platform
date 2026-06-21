@@ -13,10 +13,10 @@ For each sparse cause below, the model was trained on ALL other causes and evalu
 
 | Cause        | N  | Pos | ROC-AUC | PR-AUC | Status |
 | ------------ | -- | --- | ------- | ------ | ------ |
-| vip_movement | 20 | 16  | 0.5312  | 0.8530 | ok     |
-| protest      | 15 | 6   | 0.3704  | 0.4778 | ok     |
-| procession   | 72 | 19  | 0.5631  | 0.3005 | ok     |
-| public_event | 84 | 39  | 0.4496  | 0.4394 | ok     |
+| vip_movement | 20 | 16  | 0.3906  | 0.7869 | ok     |
+| protest      | 15 | 6   | 0.3333  | 0.3912 | ok     |
+| procession   | 72 | 19  | 0.4300  | 0.2363 | ok     |
+| public_event | 84 | 39  | 0.3476  | 0.4617 | ok     |
 
 ## Failure Cases & Known Limitations
 

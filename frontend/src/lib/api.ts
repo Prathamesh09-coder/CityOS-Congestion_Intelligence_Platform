@@ -87,147 +87,43 @@ export interface TrafficResponse {
  */
 async function callApi<TPayload, TResponse>(
   endpoint: string,
-  payload: TPayload,
-  fallbackGenerator: (payload: TPayload) => TResponse
+  payload: TPayload
 ): Promise<TResponse> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      throw new Error(`API error: ${res.statusText}`);
-    }
-    return await res.json();
-  } catch (error) {
-    console.warn(`[FastAPI Offline] Falling back to simulated response for ${endpoint}:`, error);
-    // Silent fallback to keep the app responsive but log warning
-    return fallbackGenerator(payload);
+  const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.statusText}`);
   }
+  return await res.json();
 }
 
 /**
  * M1 Road Closure Necessity Classifier Endpoint Caller
  */
 export async function predictClosure(payload: ClosurePayload): Promise<ClosureResponse> {
-  return callApi<ClosurePayload, ClosureResponse>("predict/closure", payload, (p) => {
-    // Replicate model logic locally
-    const cause = p.event_cause.toLowerCase();
-    let prob = 0.12;
-    if (["vip_movement", "protest"].includes(cause)) prob = 0.85;
-    else if (["public_event", "procession"].includes(cause)) prob = 0.65;
-    else if (["water_logging", "construction"].includes(cause)) prob = 0.35;
-    
-    // Deterministic variation based on input length
-    const seed = (p.description.length + p.corridor.length) % 10;
-    prob = Math.max(0.01, Math.min(0.99, prob + (seed / 100 - 0.05)));
-    const thresh = 0.15;
-    return {
-      closure_required: prob >= thresh,
-      probability: Number(prob.toFixed(4)),
-      threshold: thresh,
-      cause_group: cause,
-      model_mode: "simulated_local_fallback",
-    };
-  });
+  return callApi<ClosurePayload, ClosureResponse>("predict/closure", payload);
 }
 
 /**
  * M2 Clearance Duration Estimator Endpoint Caller
  */
 export async function predictDuration(payload: DurationPayload): Promise<DurationResponse> {
-  return callApi<DurationPayload, DurationResponse>("predict/duration", payload, (p) => {
-    const cause = p.event_cause.toLowerCase();
-    const acuteCauses = ["vehicle_breakdown", "accident", "congestion", "procession", "protest"];
-    const isAcute = acuteCauses.includes(cause);
-
-    const baseDurations: Record<string, number> = {
-      vehicle_breakdown: 0.8,
-      accident: 0.8,
-      congestion: 1.2,
-      procession: 0.9,
-      protest: 3.4,
-      pot_holes: 18.7,
-      water_logging: 14.1,
-      construction: 13.3,
-      road_conditions: 10.9,
-      tree_fall: 10.6,
-    };
-    const baseHrs = baseDurations[cause] ?? 1.5;
-    
-    // Deterministic variation based on input length
-    const seed = (p.description.length + p.corridor.length) % 10;
-    const est = Math.max(0.1, baseHrs + (seed / 50 - 0.1) * baseHrs);
-
-    return {
-      regime: isAcute ? "acute" : "chronic",
-      estimated_duration_hrs: Number(est.toFixed(2)),
-      risk_score: isAcute ? undefined : Number((0.1 + (seed / 20)).toFixed(4)),
-      model_mode: "simulated_local_fallback",
-    };
-  });
+  return callApi<DurationPayload, DurationResponse>("predict/duration", payload);
 }
 
 /**
  * M3 Zero-Shot Multimodal Sparse Event Predictor Endpoint Caller
  */
 export async function predictMultimodal(payload: MultimodalPayload): Promise<MultimodalResponse> {
-  return callApi<MultimodalPayload, MultimodalResponse>("predict/multimodal", payload, (p) => {
-    const length = p.description.length;
-    const seed = (length + (p.comment?.length ?? 0)) % 100;
-    return {
-      text_length: length,
-      zero_shot_risk_score: seed,
-      prediction_confidence: Number((72 + (seed * 0.2)).toFixed(1)),
-      cause_inferred: p.event_cause ?? "inferred",
-      model_mode: "simulated_local_fallback",
-    };
-  });
+  return callApi<MultimodalPayload, MultimodalResponse>("predict/multimodal", payload);
 }
 
 /**
  * M4 Spatio-Temporal Graph WaveNet Traffic Predictor Endpoint Caller
  */
 export async function predictTraffic(payload: TrafficPayload): Promise<TrafficResponse> {
-  return callApi<TrafficPayload, TrafficResponse>("predict/traffic", payload, (p) => {
-    const lat = p.lat[0] ?? 12.9716;
-    const lng = p.lng[0] ?? 77.5946;
-    // Deterministic peak hour check
-    const reportedTime = new Date(p.reported_datetime);
-    const hr = reportedTime.getHours();
-    const isPeak = (hr >= 5 && hr <= 6) || (hr >= 19 && hr <= 21);
-    
-    const baseSpeed = 24.0;
-    const seed = Math.round(lat * 10000 + lng * 10000) % 10;
-    
-    const predSpeed = Math.max(5, baseSpeed * (isPeak ? 0.6 : 0.9) + (seed / 3 - 1.5));
-    const predFlow = Math.round((isPeak ? 1300 : 750) + (seed * 20 - 100));
-    const delay = Math.max(0.5, (baseSpeed / predSpeed) * 8.0 - 8.0);
-
-    return {
-      junction: "Fallback Snapped Junction",
-      lat: lat,
-      lng: lng,
-      forecast_time: p.reported_datetime,
-      metrics: {
-        predicted_speed_kmh: Number(predSpeed.toFixed(1)),
-        predicted_flow_veh_hr: predFlow,
-        average_delay_minutes: Number(delay.toFixed(1)),
-        congestion_index: Number(Math.min(1.0, delay / 12.0).toFixed(2)),
-      },
-      road_network: {
-        active_nodes_evaluated: 124,
-        adjacent_segments_congested: isPeak ? 9 : 3,
-        graph_validation_status: "simulated_local_fallback",
-      },
-      diversion_route: [
-        [lat, lng],
-        [lat + 0.003, lng + 0.003],
-        [lat + 0.006, lng],
-        [lat + 0.003, lng - 0.003],
-        [lat, lng]
-      ]
-    };
-  });
+  return callApi<TrafficPayload, TrafficResponse>("predict/traffic", payload);
 }

@@ -80,6 +80,18 @@ road_graph: Any = None
 m4_kdtree: Any = None
 m4_coords_map: list[tuple[float, float]] = []
 
+from pyproj import Transformer
+transformer_to_utm = Transformer.from_crs("EPSG:4326", "EPSG:32643", always_xy=True)
+transformer_to_wgs = Transformer.from_crs("EPSG:32643", "EPSG:4326", always_xy=True)
+
+def to_utm(lat: float, lng: float) -> tuple[float, float]:
+    x, y = transformer_to_utm.transform(lng, lat)
+    return x, y
+
+def to_wgs(x: float, y: float) -> tuple[float, float]:
+    lng, lat = transformer_to_wgs.transform(x, y)
+    return lat, lng
+
 MOCK_JUNCTIONS_COORDS = {
     "MekhriCircle": (13.0084, 77.5906),
     "AyyappaTempleJunc": (12.9785, 77.5332),
@@ -169,6 +181,51 @@ def resolve_closest_mock_junction(lat: float, lng: float) -> str:
     return best_name
 
 def get_diversion_route(lat: float, lng: float, junction_name: str) -> list[list[float]]:
+    global road_graph
+    if road_graph is not None:
+        try:
+            import osmnx as ox
+            import networkx as nx
+            
+            # Convert lat/lng (degrees) to UTM coordinates (meters)
+            x_utm, y_utm = to_utm(lat, lng)
+            
+            # Find the nearest node in the network to the UTM coordinates (this is blocked)
+            blocked_node = ox.distance.nearest_nodes(road_graph, X=x_utm, Y=y_utm)
+            
+            # Create a copy of the graph to remove the blocked node
+            local_graph = road_graph.copy()
+            if local_graph.has_node(blocked_node):
+                local_graph.remove_node(blocked_node)
+                
+            # Find start and end nodes offset by 1500 meters in UTM coordinates (meters)
+            # Find them on local_graph to ensure they exist after removing blocked_node
+            start_node = ox.distance.nearest_nodes(local_graph, X=x_utm - 1500, Y=y_utm - 1500)
+            end_node = ox.distance.nearest_nodes(local_graph, X=x_utm + 1500, Y=y_utm + 1500)
+            
+            # Find dynamic shortest path avoiding the blocked node
+            try:
+                route = nx.shortest_path(local_graph, start_node, end_node, weight='length')
+                logger.info("Found dynamic shortest-path diversion route avoiding blocked node %s", blocked_node)
+            except nx.NetworkXNoPath:
+                logger.warning("No path found avoiding blocked node %s, attempting default shortest path", blocked_node)
+                route = nx.shortest_path(road_graph, start_node, end_node, weight='length')
+                
+            coords = []
+            for node in route:
+                node_data = road_graph.nodes[node]
+                y = node_data.get('y')
+                x = node_data.get('x')
+                if y is not None and x is not None:
+                    # Convert UTM (x, y) back to WGS84 lat/lng in degrees for frontend map display
+                    lat_wgs, lng_wgs = to_wgs(float(x), float(y))
+                    coords.append([lat_wgs, lng_wgs])
+            
+            if len(coords) > 1:
+                return coords
+        except Exception as e:
+            logger.error("Error calculating dynamic diversion: %s", e)
+
     if junction_name in PREDEFINED_DIVERSIONS:
         return PREDEFINED_DIVERSIONS[junction_name]
     return [
@@ -182,7 +239,8 @@ def get_diversion_route(lat: float, lng: float, junction_name: str) -> list[list
 def find_nearest_gnn_node(lat: float, lng: float) -> tuple[int, str]:
     global m4_kdtree, m4_nodes, m4_coords_map
     if m4_kdtree is not None and m4_nodes:
-        dist, idx = m4_kdtree.query([lat, lng])
+        x_utm, y_utm = to_utm(lat, lng)
+        dist, idx = m4_kdtree.query([y_utm, x_utm])
         return int(idx), str(m4_nodes[idx])
     fallback_idx = hash((lat, lng)) % (len(m4_nodes) if m4_nodes else 100)
     node_id = m4_nodes[fallback_idx] if m4_nodes else f"fallback_node_{fallback_idx}"
@@ -428,6 +486,27 @@ def load_assets() -> None:
                     logger.info("Built KDTree for %d GNN nodes using precalculated coordinates", len(m4_coords))
             else:
                 logger.warning("No GNN nodes loaded from M4 checkpoint; KDTree build skipped.")
+
+            # Load pruned road graph for dynamic routing
+            try:
+                import networkx as nx
+                import osmnx as ox
+                import gzip
+                pruned_graph_path = Path("data/interim/bengaluru_road_graph_pruned.graphml.gz")
+                if pruned_graph_path.exists():
+                    logger.info("Loading pruned road graph from %s for dynamic routing...", pruned_graph_path)
+                    try:
+                        with gzip.open(pruned_graph_path, "rt", encoding="utf-8") as f:
+                            road_graph = ox.load_graphml(graphml_str=f.read())
+                    except Exception as e:
+                        logger.warning("osmnx load_graphml failed for pruned graph (%s). Falling back to networkx", e)
+                        with gzip.open(pruned_graph_path, "rb") as f:
+                            road_graph = nx.read_graphml(f)
+                    logger.info("Pruned road graph loaded successfully: %d nodes, %d edges", road_graph.number_of_nodes(), road_graph.number_of_edges())
+                else:
+                    logger.warning("Pruned road graph not found. Dynamic routing will fallback to predefined routes.")
+            except Exception as e:
+                logger.error("Failed to load pruned road graph: %s", e)
         else:
             logger.info("Precalculated GNN node coordinates not found. Falling back to loading full OSM road graph...")
             from astra_ml.data.road_graph import get_or_build_road_graph
@@ -959,19 +1038,8 @@ def get_live_telemetries() -> dict[str, Any]:
 def predict_multimodal(payload: MultimodalPayload) -> dict[str, Any]:
     """Inference endpoint for M3 zero-shot cold-start multimodal model with dynamic PyTorch inference."""
     if m3_model is None:
-        logger.warning("M3 Model offline. Running simulated multimodal projection.")
-        emb = compute_text_embedding_sync(payload.description, payload.comment)
-        proj_weight = np.sin(np.arange(384) * 0.1)
-        raw_proj = float(np.dot(emb, proj_weight))
-        risk_prob = 1.0 / (1.0 + np.exp(-raw_proj))
-        confidence = 65.0 + risk_prob * 30.0
-        return {
-            "text_length": len(payload.description),
-            "zero_shot_risk_score": round(risk_prob * 100, 1),
-            "prediction_confidence": round(confidence, 1),
-            "cause_inferred": payload.event_cause,
-            "model_mode": "simulated_multimodal_fallback"
-        }
+        logger.error("M3 Model offline. Rejecting request.")
+        raise HTTPException(status_code=503, detail="M3 Multimodal model is offline or failed to load.")
 
     try:
         # Construct dynamic DataFrame
@@ -1058,11 +1126,8 @@ def predict_traffic(payload: TrafficPayload) -> dict[str, Any]:
     speed_mult = 0.55 if is_peak else 0.90
     flow_mult = 1.65 if is_peak else 1.0
 
-    # Seed RNG based on coordinates and datetime to make it deterministic
-    seed = int(lat * 10000 + lng * 10000 + hour) % (2**32)
-    rng = np.random.RandomState(seed)
-    predicted_speed = max(5.0, base_speed * speed_mult + rng.uniform(-3.0, 3.0))
-    predicted_flow = max(100.0, 800.0 * flow_mult + rng.uniform(-100.0, 100.0))
+    predicted_speed = max(5.0, base_speed * speed_mult)
+    predicted_flow = max(100.0, 800.0 * flow_mult)
     predicted_delay_min = max(0.5, (base_speed / predicted_speed) * 8.0 - 8.0)
 
     # Blend with GNN model forecast if available
@@ -1100,6 +1165,10 @@ def predict_traffic(payload: TrafficPayload) -> dict[str, Any]:
             model_status = "WaveNet_GNN_Live_Weights_Active"
         except Exception as e:
             logger.error("Error running GNN model forward pass: %s", e)
+            raise HTTPException(status_code=503, detail="M4 GNN model failed to run.")
+    else:
+        logger.error("M4 GNN model is offline.")
+        raise HTTPException(status_code=503, detail="M4 GNN model is offline.")
 
     # 2. Blend with Real-Time Streaming Telemetry if available (predicting based on what's happening right now)
     live_telemetry = LIVE_TRAFFIC_TELEMETRY.get(resolved_junc)

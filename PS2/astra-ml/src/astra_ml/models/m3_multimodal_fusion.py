@@ -447,6 +447,75 @@ def run_loo_cv(data_cfg: dict, m3_cfg: dict) -> dict[str, dict]:
     return results
 
 
+
+def train_and_save_m3(data_cfg: dict, m3_cfg: dict) -> None:
+    """Train the final M3 model on the full dataset and save to disk."""
+    import torch
+    from transformers import AutoModel, AutoTokenizer
+    import os
+
+    splits_path = Path(data_cfg["paths"]["splits_parquet"])
+    df = pl.read_parquet(splits_path)
+
+    try:
+        df = df.with_row_index("row_idx")
+    except AttributeError:
+        df = df.with_row_count("row_idx")
+
+    model_name = m3_cfg["text_encoder"]["model_name"]
+    logger.info("Loading tokenizer and base model for final training: %s", model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    base_model = AutoModel.from_pretrained(model_name)
+
+    model = MultimodalFusionModel(m3_cfg, tokenizer, base_model)
+    model._build_cat_embeddings(df)
+    model.to(model.device)
+
+    training_cfg = m3_cfg["training"]
+    seed = m3_cfg.get("seed", 42)
+
+    trainable_params = []
+    trainable_params.extend([p for p in model.text_encoder.parameters() if p.requires_grad])
+    trainable_params.extend(model.text_projection.parameters())
+    trainable_params.extend(model.fusion_mlp.parameters())
+    trainable_params.extend(model.closure_head.parameters())
+    trainable_params.extend(model.duration_head.parameters())
+    for emb in model.cat_embeddings.values():
+        trainable_params.extend(emb.parameters())
+
+    optimizer = torch.optim.AdamW(
+        trainable_params,
+        lr=training_cfg.get("learning_rate", 2e-4),
+        weight_decay=training_cfg.get("weight_decay", 0.01),
+    )
+
+    n_epochs = training_cfg.get("epochs", 30)
+    logger.info("Training final M3 model on full dataset (%d records) for %d epochs...", df.height, n_epochs)
+
+    for epoch in range(n_epochs):
+        loss = model.train_epoch(
+            df,
+            optimizer,
+            batch_size=training_cfg.get("batch_size", 16),
+        )
+        if (epoch + 1) % 5 == 0:
+            logger.info("Epoch %d/%d — loss: %.4f", epoch + 1, n_epochs, loss)
+
+    os.makedirs("models", exist_ok=True)
+    save_path = "models/m3_model.pth"
+    
+    logger.info("Saving final model to %s", save_path)
+    
+    checkpoint = {
+        "state_dict": model.state_dict(),
+        "cat_vocab": model.cat_vocab,
+        "embedding_dim": model.embedding_dim,
+        "cfg": model.cfg
+    }
+    torch.save(checkpoint, save_path)
+    logger.info("✅ Final M3 model weights saved successfully.")
+
+
 def run_m3() -> None:
     """Run M3 multimodal sparse-event forecaster."""
     import torch
@@ -467,78 +536,10 @@ def run_m3() -> None:
     logger.info("M3 — Sparse/Novel Event Multimodal Forecaster")
     logger.info("=" * 60)
 
-    # Run LOO-CV
-    loo_results = run_loo_cv(data_cfg, m3_cfg)
+    # Run Final Full-Dataset Training and Save Model
+    train_and_save_m3(data_cfg, m3_cfg)
 
-    # Generate report
-    report_path = Path("reports/m3_multimodal_sparse.md")
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-
-    lines = [
-        "# M3 — Sparse/Novel Event Multimodal Forecaster",
-        "",
-        "## Architecture",
-        "",
-        f"- **Text encoder**: {m3_cfg['text_encoder']['model_name']} with Trainable LoRA Adapters",
-        "- **Adapters**: Trainable Text Projection layer",
-        f"- **Fusion head**: {m3_cfg['fusion_head']['hidden_dims']}",
-        "- **Training**: Multi-task (closure BCE + duration MSE)",
-        "",
-        "## Leave-One-Cause-Out Cross-Validation (Cold-Start Evaluation)",
-        "",
-        "For each sparse cause below, the model was trained on ALL other causes "
-        "and evaluated on the held-out cause — simulating a true cold-start scenario "
-        "where the model has zero training examples of that event type.",
-        "",
-    ]
-
-    headers = ["Cause", "N", "Pos", "ROC-AUC", "PR-AUC", "Status"]
-    rows = []
-    for cause, res in loo_results.items():
-        rows.append([
-            cause,
-            str(res.get("n_test", 0)),
-            str(res.get("n_positive", 0)),
-            f"{res.get('roc_auc', 'N/A'):.4f}" if isinstance(res.get("roc_auc"), float) else "N/A",
-            f"{res.get('pr_auc', 'N/A'):.4f}" if isinstance(res.get("pr_auc"), float) else "N/A",
-            res.get("status", "ok"),
-        ])
-
-    # Format table
-    widths = [max(len(h), max((len(r[i]) for r in rows), default=0)) for i, h in enumerate(headers)]
-    lines.append("| " + " | ".join(h.ljust(w) for h, w in zip(headers, widths)) + " |")
-    lines.append("| " + " | ".join("-" * w for w in widths) + " |")
-    for row in rows:
-        lines.append("| " + " | ".join(c.ljust(w) for c, w in zip(row, widths)) + " |")
-
-    lines.extend([
-        "",
-        "## Failure Cases & Known Limitations",
-        "",
-        "- **Single-class test sets**: Some sparse causes may have all-positive or "
-        "all-negative closure labels, making AUC undefined. This is reported as 'single_class'.",
-        "- **Cold-start ceiling**: With zero training examples of the held-out cause, "
-        "the model can only rely on semantic similarity (text embeddings) and structured "
-        "feature patterns — there is a fundamental accuracy ceiling here.",
-        "- **Small sample sizes**: vip_movement (n≈20), protest (n≈15), procession (n≈14) — "
-        "confidence intervals on these AUC numbers are very wide.",
-        "- **LoRA fine-tuning**: Trainable LoRA adapter layers are inserted dynamically; the base encoder "
-        "remains frozen to prevent catastrophic forgetting.",
-        "- **Multilingual text**: MuRIL handles Kannada+English well, but mixed-script "
-        "text with emojis (present in the data) may not be tokenized optimally.",
-    ])
-
-    report_path.write_text("\n".join(lines) + "\n")
-
-    # Log to MLflow
-    with mlflow.start_run(run_name="m3_loo_cv"):
-        for cause, res in loo_results.items():
-            for k, v in res.items():
-                if isinstance(v, (int, float)):
-                    mlflow.log_metric(f"{cause}_{k}", v)
-        log_markdown_report(report_path)
-
-    logger.info("✅ M3 complete. Report: %s", report_path)
+    logger.info("✅ M3 complete.")
 
 
 if __name__ == "__main__":
