@@ -8,6 +8,7 @@ interface Props {
   showHeatmap?: boolean;
   showDiversion?: boolean;
   height?: number | string;
+  diversionRoute?: number[][];
 }
 
 const LeafletMap = lazy(() => import("./LeafletMap"));

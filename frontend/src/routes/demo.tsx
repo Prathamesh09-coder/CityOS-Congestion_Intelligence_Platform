@@ -320,7 +320,7 @@ function StepContent({
         </Card>
         <Card padded={false}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", fontSize: 12, fontWeight: 600 }}>After — AI diversion</div>
-          <div style={{ height: 260, padding: 8 }}><CityMap events={[dynamicEvent]} showDiversion /></div>
+          <div style={{ height: 260, padding: 8 }}><CityMap events={[dynamicEvent]} showDiversion diversionRoute={trafficData?.diversion_route} /></div>
         </Card>
         
         {/* M4 Spatio-Temporal Graph WaveNet Telemetry Card */}

@@ -12,6 +12,7 @@ interface Props {
   showHeatmap?: boolean;
   showDiversion?: boolean;
   height?: number | string;
+  diversionRoute?: number[][];
 }
 
 const CORRIDOR_PATHS = [
@@ -99,7 +100,7 @@ function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-export default function LeafletMap({ events, selectedId, onSelect, showHeatmap = true, showDiversion = false, height = "100%" }: Props) {
+export default function LeafletMap({ events, selectedId, onSelect, showHeatmap = true, showDiversion = false, height = "100%", diversionRoute }: Props) {
   const { theme } = useTheme();
   
   // Find active selected event to center on
@@ -182,21 +183,34 @@ export default function LeafletMap({ events, selectedId, onSelect, showHeatmap =
         )}
 
         {/* Diversion routes */}
-        {showDiversion &&
-          events
-            .filter((e) => e.closure)
-            .map((e) => (
-              <Polyline
-                key={`dv-${e.id}`}
-                positions={getRouteForEvent(e)}
-                pathOptions={{
-                  color: 'var(--color-success)',
-                  weight: 3.5,
-                  dashArray: '5, 8',
-                  opacity: 0.95
-                }}
-              />
-            ))}
+        {showDiversion && (
+          diversionRoute && diversionRoute.length > 0 ? (
+            <Polyline
+              positions={diversionRoute as [number, number][]}
+              pathOptions={{
+                color: 'var(--color-success)',
+                weight: 3.5,
+                dashArray: '5, 8',
+                opacity: 0.95
+              }}
+            />
+          ) : (
+            events
+              .filter((e) => e.closure)
+              .map((e) => (
+                <Polyline
+                  key={`dv-${e.id}`}
+                  positions={getRouteForEvent(e)}
+                  pathOptions={{
+                    color: 'var(--color-success)',
+                    weight: 3.5,
+                    dashArray: '5, 8',
+                    opacity: 0.95
+                  }}
+                />
+              ))
+          )
+        )}
 
         {/* Junctions */}
         {JUNCTIONS.map((j) => (

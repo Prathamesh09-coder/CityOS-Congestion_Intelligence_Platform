@@ -205,7 +205,7 @@ function Diversion() {
                 <Badge kind="success">AI route active</Badge>
               </div>
               <div style={{ flex: 1, padding: 8 }}>
-                <CityMap events={[dynamicEvent]} showDiversion={true} />
+                <CityMap events={[dynamicEvent]} showDiversion={true} diversionRoute={trafficData?.diversion_route} />
               </div>
             </Card>
           </div>
