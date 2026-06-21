@@ -19,7 +19,7 @@ COPY src/ ./src/
 
 # Install python dependencies and project with uv.
 # We override the pytorch index to download CPU wheels specifically to keep the image slim.
-RUN uv pip install --system --no-cache .[deep] --extra-index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --system --no-cache .[deep] --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 
 # Copy remaining application code, configurations, model artifacts, and data
 COPY configs/ ./configs/
