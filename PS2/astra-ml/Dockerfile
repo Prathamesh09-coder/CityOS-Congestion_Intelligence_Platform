@@ -13,15 +13,16 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Set working directory
 WORKDIR /app
 
-# Copy lock files and pyproject.toml
-COPY pyproject.toml uv.lock ./
-
-# Install python dependencies with uv.
-# We override the pytorch index to download CPU wheels specifically to keep the image slim.
-RUN uv pip install --system --no-cache -e .[deep] --extra-index-url https://download.pytorch.org/whl/cpu
-
-# Copy application code and model artifacts
+# Copy configuration files, readme, and source code required for building the package
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
+
+# Install python dependencies and project with uv.
+# We override the pytorch index to download CPU wheels specifically to keep the image slim.
+RUN uv pip install --system --no-cache .[deep] --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Copy remaining application code, configurations, model artifacts, and data
+COPY configs/ ./configs/
 COPY models/ ./models/
 COPY data/ ./data/
 
