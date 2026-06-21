@@ -47,5 +47,4 @@ catboost_info/
 lightning_logs/
 
 # Large Model Weights (exceeding GitHub's 100MB limit)
-PS2/astra-ml/models/m3_model.pth
 PS2/astra-ml/data/interim/bengaluru_road_graph.graphml
