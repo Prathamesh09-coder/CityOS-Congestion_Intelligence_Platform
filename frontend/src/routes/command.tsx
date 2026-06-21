@@ -4,7 +4,9 @@ import { AlertTriangle, Sparkles, MapPin, Clock } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
 import { CityMap } from "@/components/cityos/CityMap";
 import { Card, PanelHeader, Badge, Kpi, Gauge, ProgressBar, Divider } from "@/components/cityos/primitives";
-import { ACTIVE_EVENTS, KPI, causeMeta, type CityEvent } from "@/lib/cityos-data";
+import { ACTIVE_EVENTS as DEFAULT_EVENTS, KPI as DEFAULT_KPI, causeMeta, type CityEvent } from "@/lib/cityos-data";
+import { useQuery } from "@tanstack/react-query";
+import { getDashboardStream } from "@/lib/api";
 
 export const Route = createFileRoute("/command")({
   head: () => ({
@@ -17,7 +19,16 @@ export const Route = createFileRoute("/command")({
 });
 
 function CommandCenter() {
-  const [selected, setSelected] = useState<CityEvent>(ACTIVE_EVENTS[0]);
+  const { data } = useQuery({
+    queryKey: ["dashboardStream"],
+    queryFn: getDashboardStream,
+    refetchInterval: 5000,
+  });
+
+  const activeEvents = data?.events?.length > 0 ? data.events : DEFAULT_EVENTS;
+  const kpi = data?.kpis || DEFAULT_KPI;
+
+  const [selected, setSelected] = useState<CityEvent>(activeEvents[0]);
   const [timeline, setTimeline] = useState(50);
 
   return (
@@ -27,20 +38,20 @@ function CommandCenter() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
           <Kpi
             label="City Readiness"
-            value={KPI.readiness}
+            value={kpi.readiness}
             color="var(--color-primary)"
-            accent={<Gauge value={KPI.readiness} size={56} color="var(--color-primary)" />}
+            accent={<Gauge value={kpi.readiness} size={56} color="var(--color-primary)" />}
             sub="Composite score"
           />
           <Kpi
             label="Active Events"
-            value={KPI.activeEvents.toLocaleString()}
+            value={kpi.activeEvents.toLocaleString()}
             sub="Live"
             accent={<span style={{ width: 10, height: 10, borderRadius: 99, background: "var(--color-critical)" }} className="live-dot" />}
           />
-          <Kpi label="Predicted High-Risk" value={KPI.predictedHighRisk} color="var(--color-warning)" sub="Next 2 hrs · ML forecast" />
-          <Kpi label="Active Road Closures" value={KPI.activeRoadClosures} color="var(--color-critical)" sub="requires_road_closure = true" />
-          <Kpi label="Avg Resolution" value={`${KPI.avgResolutionHrs} hrs`} sub="Across 2,588 events" />
+          <Kpi label="Predicted High-Risk" value={kpi.predictedHighRisk} color="var(--color-warning)" sub="Next 2 hrs · ML forecast" />
+          <Kpi label="Active Road Closures" value={kpi.activeRoadClosures} color="var(--color-critical)" sub="requires_road_closure = true" />
+          <Kpi label="Avg Resolution" value={`${kpi.avgResolutionHrs} hrs`} sub="Across 2,588 events" />
           <div
             className="cityos-card count-up"
             style={{ padding: "12px 16px", background: "var(--color-warning-light)", borderColor: "var(--color-warning)", display: "flex", gap: 10, alignItems: "center" }}
@@ -69,11 +80,11 @@ function CommandCenter() {
             <span style={{ fontWeight: 600, fontSize: 13 }}>Active Events</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--color-text-secondary)" }}>
               <span style={{ width: 7, height: 7, borderRadius: 99, background: "var(--color-critical)" }} className="live-dot" />
-              {ACTIVE_EVENTS.length} live
+              {activeEvents.length} live
             </span>
           </div>
           <div style={{ overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-            {ACTIVE_EVENTS.map((e) => (
+            {activeEvents.map((e) => (
               <EventCard key={e.id} event={e} active={selected.id === e.id} onClick={() => setSelected(e)} />
             ))}
           </div>
@@ -82,7 +93,7 @@ function CommandCenter() {
         {/* CENTER: Map */}
         <section style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <CityMap events={ACTIVE_EVENTS} selectedId={selected.id} onSelect={setSelected} showHeatmap showDiversion />
+            <CityMap events={activeEvents} selectedId={selected.id} onSelect={setSelected} showHeatmap showDiversion />
           </div>
 
           {/* Timeline slider */}
