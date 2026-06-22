@@ -82,20 +82,8 @@ export interface TrafficResponse {
   diversion_route: number[][];
 }
 
-export interface DashboardResponse {
-  events: any[]; // We will map these to CityEvent in the frontend
-  kpis: {
-    readiness: number;
-    activeEvents: number;
-    predictedHighRisk: number;
-    activeRoadClosures: number;
-    avgResolutionHrs: number;
-  };
-  telemetry: Record<string, any>;
-}
-
 /**
- * Handle fetch call with automated fallback if API server is offline.
+ * Handle fetch call without silent fallbacks so errors bubble up
  */
 async function callApi<TPayload, TResponse>(
   endpoint: string,
@@ -138,18 +126,4 @@ export async function predictMultimodal(payload: MultimodalPayload): Promise<Mul
  */
 export async function predictTraffic(payload: TrafficPayload): Promise<TrafficResponse> {
   return callApi<TrafficPayload, TrafficResponse>("predict/traffic", payload);
-}
-
-/**
- * Stream Dashboard Live Feed Caller
- */
-export async function getDashboardStream(): Promise<DashboardResponse> {
-  const res = await fetch(`${API_BASE_URL}/stream/dashboard`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" }
-  });
-  if (!res.ok) {
-    throw new Error(`API error: ${res.statusText}`);
-  }
-  return await res.json();
 }

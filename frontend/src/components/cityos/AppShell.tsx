@@ -32,8 +32,17 @@ export function AppShell({ children, fullBleed = false }: { children: ReactNode;
   );
 }
 
+import { useState, useEffect } from "react";
+
 function TopBar() {
-  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const [now, setNow] = useState("");
+  useEffect(() => {
+    setNow(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+    const interval = setInterval(() => {
+      setNow(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
   return (
     <header
       style={{
