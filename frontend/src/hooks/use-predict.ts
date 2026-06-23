@@ -76,10 +76,12 @@ export function useMultimodalPrediction() {
  */
 export function useTrafficPrediction(payload: TrafficPayload, enabled = true) {
   return useQuery<TrafficResponse, Error>({
-    queryKey: ["trafficPrediction", payload.junction, payload.reported_datetime],
+    // Omit reported_datetime from queryKey to avoid infinite cache busting on every render
+    queryKey: ["trafficPrediction", payload.junction, payload.lat, payload.lng],
     queryFn: () => predictTraffic(payload),
     enabled,
     staleTime: 30000, // 30 seconds
+    refetchInterval: 5000, // Make it real-time every 5 seconds
     meta: {
       onError: (err: any) => {
         toast.error(`M4 Traffic forecast failed: ${err.message}`);
