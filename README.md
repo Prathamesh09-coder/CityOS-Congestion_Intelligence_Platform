@@ -4,6 +4,8 @@
 
 Recently, the system has been upgraded to replace static stylized SVG canvases with a fully interactive, realistic **OpenStreetMap (OSM)** integration snapping real geographic coordinates (lat/lng arrays) to nearest OSM Graph road network nodes using `scipy.spatial.KDTree`.
 
+Additionally, the entire CityOS dashboard is now **fully real-time**, replacing static mock datasets with a live streaming integration of the **TomTom Telemetry API**. Modules such as the Scenario Sandbox, AI Resource Command Center, and Event Similarity Engine now automatically consume, auto-fill, and dynamically forecast based on active, real-world traffic incidents streaming in from the backend.
+
 ---
 
 ## 🏛️ System Architecture
