@@ -25,6 +25,11 @@ function Similarity() {
   const [type, setType] = useState<"planned" | "unplanned">("unplanned");
   const [liveEventId, setLiveEventId] = useState<string>("");
 
+  const handleManualChange = <T,>(setter: React.Dispatch<React.SetStateAction<T>>) => (val: T) => {
+    setter(val);
+    if (liveEventId) setLiveEventId("");
+  };
+
   const { data: streamData } = useQuery({
     queryKey: ["dashboardStream"],
     queryFn: getDashboardStream,
@@ -79,7 +84,10 @@ function Similarity() {
               <Select 
                 value={liveEventId} 
                 onChange={handleSelectLiveEvent} 
-                options={activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor} (${e.id})` }))} 
+                options={[
+                  { value: "", label: "Select an active TomTom incident..." },
+                  ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor} (${e.id})` }))
+                ]} 
               />
             </div>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Select an active TomTom incident to populate the search fingerprint.</span>
@@ -90,7 +98,7 @@ function Similarity() {
           <Field label="Event Type">
             <div style={{ display: "flex", gap: 6 }}>
               {(["planned", "unplanned"] as const).map((t) => (
-                <button key={t} onClick={() => setType(t)} style={{
+                <button key={t} onClick={() => handleManualChange(setType)(t)} style={{
                   flex: 1, padding: "8px", borderRadius: 99, fontSize: 11, fontWeight: 600, cursor: "pointer",
                   border: `1px solid ${type === t ? "var(--color-primary)" : "var(--color-border)"}`,
                   background: type === t ? "var(--color-primary)" : "var(--color-surface)",
@@ -100,18 +108,25 @@ function Similarity() {
             </div>
           </Field>
           <Field label="Event Cause">
-            <Select value={cause} onChange={setCause} options={EVENT_CAUSES.map((c) => ({ value: c.value, label: c.label }))} />
+            <Select value={cause} onChange={handleManualChange(setCause)} options={EVENT_CAUSES.map((c) => ({ value: c.value, label: c.label }))} />
           </Field>
           <Field label="Corridor">
-            <Select value={corridor} onChange={setCorridor} options={CORRIDORS.map((c) => ({ value: c.name, label: c.name }))} />
+            <Select 
+              value={corridor} 
+              onChange={handleManualChange(setCorridor)} 
+              options={[
+                ...CORRIDORS.map((c) => ({ value: c.name, label: c.name })),
+                ...(!CORRIDORS.some(c => c.name === corridor) ? [{ value: corridor, label: corridor }] : [])
+              ]} 
+            />
           </Field>
           <Field label="Zone">
-            <Select value={zone} onChange={setZone} options={ZONES.map((z) => ({ value: z, label: z }))} />
+            <Select value={zone} onChange={handleManualChange(setZone)} options={ZONES.map((z) => ({ value: z, label: z }))} />
           </Field>
           <Field label="Priority">
             <div style={{ display: "flex", gap: 6 }}>
               {(["High", "Low"] as const).map((p) => (
-                <button key={p} onClick={() => setPriority(p)} style={{
+                <button key={p} onClick={() => handleManualChange(setPriority)(p)} style={{
                   flex: 1, padding: "8px", borderRadius: 99, fontSize: 11, fontWeight: 600, cursor: "pointer",
                   border: `1px solid ${priority === p ? "var(--color-primary)" : "var(--color-border)"}`,
                   background: priority === p ? "var(--color-primary)" : "var(--color-surface)",
@@ -120,7 +135,9 @@ function Similarity() {
               ))}
             </div>
           </Field>
-          <Button><Search size={14} /> Search</Button>
+          <Button variant="primary" style={{ padding: "9px 16px" }}>
+            <Search size={14} /> Search
+          </Button>
         </div>
       </Card>
 
