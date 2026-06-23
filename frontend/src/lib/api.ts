@@ -132,7 +132,7 @@ export async function predictTraffic(payload: TrafficPayload): Promise<TrafficRe
  * Dashboard Stream Endpoint Caller
  */
 export async function getDashboardStream(): Promise<any> {
-  const res = await fetch(`${API_BASE_URL}/dashboard/stream`);
+  const res = await fetch(`${API_BASE_URL}/stream/dashboard`);
   if (!res.ok) {
     throw new Error(`API error: ${res.statusText}`);
   }
