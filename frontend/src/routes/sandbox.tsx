@@ -83,7 +83,7 @@ function Sandbox() {
       corridor,
       priority: crowd > 20000 ? "High" : "Low",
       reported_datetime,
-      description: `${cause.replace("_", " ")} on ${corridor} with crowd size ${crowd}.`,
+      description: `${(cause || "Unknown").replace("_", " ")} on ${corridor} with crowd size ${crowd}.`,
       comment: `Simulation run at hour ${hour}. rain=${rain}, construction=${construction}, accident=${accident}.`,
       vehicle_type: accident ? "heavy_vehicle" : null,
       junction: null,
@@ -190,7 +190,7 @@ function Sandbox() {
               <Select 
                 value={liveEventId} 
                 onChange={handleLoadLiveEvent} 
-                options={[{ value: "", label: "Select an active incident..." }, ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor}` }))]} 
+                options={[{ value: "", label: "Select an active incident..." }, ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${(e.cause || "Unknown").replace(/_/g, " ")} on ${e.corridor}` }))]} 
               />
             </div>
           )}

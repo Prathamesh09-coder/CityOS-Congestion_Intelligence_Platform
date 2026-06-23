@@ -219,7 +219,7 @@ function Diversion() {
           <PanelHeader title="Diversion Plan" accent right={<RouteIcon size={14} style={{ color: "var(--color-ai-accent)" }} />} />
           <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12, fontSize: 12 }}>
             <KV label="Affected Corridor" value={<b style={{ color: "var(--color-text-primary)" }}>{selected.corridor}</b>} />
-            <KV label="Disruption Cause" value={selected.cause.replace(/_/g, " ")} />
+            <KV label="Disruption Cause" value={(selected.cause || "Unknown").replace(/_/g, " ")} />
             <KV label="Road Closure Prediction" value={<Badge kind={dynamicClosure ? "closure" : "neutral"}>{dynamicClosure ? "Required" : "Not required"}</Badge>} />
             
             {/* Live Model Telemetry metrics */}

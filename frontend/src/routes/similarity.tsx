@@ -86,7 +86,7 @@ function Similarity() {
                 onChange={handleSelectLiveEvent} 
                 options={[
                   { value: "", label: "Select an active TomTom incident..." },
-                  ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor} (${e.id})` }))
+                  ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${(e.cause || "Unknown").replace(/_/g, " ")} on ${e.corridor} (${e.id})` }))
                 ]} 
               />
             </div>

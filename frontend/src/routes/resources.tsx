@@ -106,7 +106,7 @@ function ResourceCmd() {
                 border: selected.id === e.id ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
                 borderLeft: `3px solid ${e.priority === "High" ? "var(--color-critical)" : "var(--color-border)"}`,
               }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>{e.cause.replace(/_/g, " ")}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>{(e.cause || "Unknown").replace(/_/g, " ")}</div>
                 <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{e.corridor}</div>
               </button>
             ))}
@@ -149,7 +149,7 @@ function ResourceCmd() {
           <PanelHeader title="AI Deployment Plan" accent />
           <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-              Event: <b style={{ color: "var(--color-text-primary)" }}>{selected.cause.replace(/_/g, " ")}</b> on {selected.corridor}
+              Event: <b style={{ color: "var(--color-text-primary)" }}>{(selected.cause || "Unknown").replace(/_/g, " ")}</b> on {selected.corridor}
             </div>
 
             <RecRow icon={Users} label="Officers Required" value={targetOfficers} color="var(--color-primary)" />

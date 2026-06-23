@@ -43,7 +43,7 @@ function Forecast() {
       corridor,
       priority: type === "planned" ? "Low" : "High",
       reported_datetime,
-      description: `Hypothetical ${type} event: ${cause.replace("_", " ")} on ${corridor}`,
+      description: `Hypothetical ${type} event: ${(cause || "Unknown").replace("_", " ")} on ${corridor}`,
       comment: `Simulated via Forecast page. Hour=${hour}, closure required=${closure}, base duration=${duration}.`,
       vehicle_type: null,
       junction: null,
@@ -57,7 +57,7 @@ function Forecast() {
       onSuccess: () => setRan(true),
     });
     predictMultimodal.mutate({
-      description: `Hypothetical ${type} event: ${cause.replace("_", " ")} on ${corridor}`,
+      description: `Hypothetical ${type} event: ${(cause || "Unknown").replace("_", " ")} on ${corridor}`,
       comment: `Simulated via Forecast page. Hour=${hour}, closure required=${closure}, base duration=${duration}.`,
       event_cause: cause,
       corridor,
