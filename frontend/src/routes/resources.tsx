@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Sparkles, Truck, Construction, Siren, ShieldAlert, MapPin, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
 import { Card, PanelHeader, Badge, Gauge, ProgressBar, PageHeader, Button } from "@/components/cityos/primitives";
 import { CityMap } from "@/components/cityos/CityMap";
-import { ACTIVE_EVENTS, type CityEvent } from "@/lib/cityos-data";
+import { ACTIVE_EVENTS as DEFAULT_EVENTS, type CityEvent } from "@/lib/cityos-data";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { predictResources, deployResources } from "@/lib/api";
+import { predictResources, deployResources, getDashboardStream } from "@/lib/api";
 
 export const Route = createFileRoute("/resources")({
   head: () => ({
@@ -28,8 +28,26 @@ const RESOURCE_TYPES = [
 ];
 
 function ResourceCmd() {
-  const [selected, setSelected] = useState<CityEvent>(ACTIVE_EVENTS[0]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [allocated, setAllocated] = useState({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 });
+
+  const { data: streamData } = useQuery({
+    queryKey: ["dashboardStream"],
+    queryFn: getDashboardStream,
+    refetchInterval: 5000,
+  });
+
+  const activeEvents = streamData?.events?.length > 0 ? streamData.events : DEFAULT_EVENTS;
+
+  useEffect(() => {
+    if (!selectedId && activeEvents.length > 0) {
+      setSelectedId(activeEvents[0].id);
+    } else if (selectedId && !activeEvents.find((e: CityEvent) => e.id === selectedId) && activeEvents.length > 0) {
+      setSelectedId(activeEvents[0].id);
+    }
+  }, [activeEvents, selectedId]);
+
+  const selected = activeEvents.find((e: CityEvent) => e.id === selectedId) || activeEvents[0] || DEFAULT_EVENTS[0];
 
   const { data: recs, isLoading } = useQuery({
     queryKey: ["resources", selected.id],
@@ -81,8 +99,8 @@ function ResourceCmd() {
         <Card padded={false} style={{ display: "flex", flexDirection: "column" }}>
           <PanelHeader title="Active Events" />
           <div style={{ overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            {ACTIVE_EVENTS.map((e) => (
-              <button key={e.id} onClick={() => { setSelected(e); setAllocated({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 }); deployMut.reset(); }} style={{
+            {activeEvents.map((e: CityEvent) => (
+              <button key={e.id} onClick={() => { setSelectedId(e.id); setAllocated({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 }); deployMut.reset(); }} style={{
                 textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer",
                 background: selected.id === e.id ? "var(--color-primary-light)" : "var(--color-surface)",
                 border: selected.id === e.id ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
@@ -98,7 +116,7 @@ function ResourceCmd() {
         {/* CENTER: Map */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <CityMap events={ACTIVE_EVENTS} selectedId={selected.id} onSelect={setSelected} showHeatmap />
+            <CityMap events={activeEvents} selectedId={selected.id} onSelect={(e) => setSelectedId(e.id)} showHeatmap />
           </div>
           {/* Draggable resource chips */}
           <Card padded>

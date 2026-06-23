@@ -74,14 +74,15 @@ export function Kpi({
 }
 
 export function Button({
-  children, variant = "primary", onClick, full, style, type = "button",
-}: { children: ReactNode; variant?: "primary" | "secondary" | "ghost"; onClick?: () => void; full?: boolean; style?: CSSProperties; type?: "button" | "submit" }) {
+  children, variant = "primary", onClick, full, style, type = "button", disabled
+}: { children: ReactNode; variant?: "primary" | "secondary" | "ghost"; onClick?: () => void; full?: boolean; style?: CSSProperties; type?: "button" | "submit"; disabled?: boolean }) {
   const base: CSSProperties = {
     borderRadius: 8,
     padding: "10px 16px",
     fontWeight: 600,
     fontSize: 13,
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
     transition: "all 0.2s",
     border: "1px solid transparent",
     width: full ? "100%" : undefined,
@@ -96,7 +97,7 @@ export function Button({
     ghost: { background: "transparent", color: "var(--color-text-secondary)" },
   };
   return (
-    <button type={type} onClick={onClick} style={{ ...base, ...styles[variant], ...style }}>
+    <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...styles[variant], ...style }}>
       {children}
     </button>
   );

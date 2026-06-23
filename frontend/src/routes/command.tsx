@@ -84,7 +84,7 @@ function CommandCenter() {
             </span>
           </div>
           <div style={{ overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-            {activeEvents.map((e) => (
+            {activeEvents.map((e: CityEvent) => (
               <EventCard key={e.id} event={e} active={selected.id === e.id} onClick={() => setSelected(e)} />
             ))}
           </div>

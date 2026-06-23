@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Sparkles, Activity } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
 import { Card, PanelHeader, Badge, Button, Field, Select, ProgressBar, PageHeader } from "@/components/cityos/primitives";
-import { CORRIDORS, EVENT_CAUSES, ZONES } from "@/lib/cityos-data";
+import { CORRIDORS, EVENT_CAUSES, ZONES, type CityEvent } from "@/lib/cityos-data";
 import { useQuery } from "@tanstack/react-query";
-import { predictSimilarity } from "@/lib/api";
+import { predictSimilarity, getDashboardStream } from "@/lib/api";
 
 export const Route = createFileRoute("/similarity")({
   head: () => ({
@@ -23,6 +23,34 @@ function Similarity() {
   const [zone, setZone] = useState(ZONES[0]);
   const [priority, setPriority] = useState<"High" | "Low">("High");
   const [type, setType] = useState<"planned" | "unplanned">("unplanned");
+  const [liveEventId, setLiveEventId] = useState<string>("");
+
+  const { data: streamData } = useQuery({
+    queryKey: ["dashboardStream"],
+    queryFn: getDashboardStream,
+    refetchInterval: 5000,
+  });
+
+  const activeEvents = streamData?.events || [];
+
+  // Initialize with the first live event if none is selected yet
+  useEffect(() => {
+    if (activeEvents.length > 0 && !liveEventId) {
+      handleSelectLiveEvent(activeEvents[0].id);
+    }
+  }, [activeEvents, liveEventId]);
+
+  const handleSelectLiveEvent = (id: string) => {
+    setLiveEventId(id);
+    const evt = activeEvents.find((e: CityEvent) => e.id === id);
+    if (evt) {
+      setCause(evt.cause);
+      setCorridor(evt.corridor);
+      setZone(evt.zone || ZONES[0]);
+      setPriority(evt.priority as "High" | "Low");
+      setType(evt.type as "planned" | "unplanned");
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["similarity", { type, cause, corridor, zone, priority }],
@@ -37,10 +65,27 @@ function Similarity() {
       <PageHeader
         title="Event Similarity Engine"
         subtitle="Given a new event's fingerprint, find the most similar historical events using cosine/Jaccard similarity on encoded features."
+        right={<Badge kind="ai" icon={<Activity size={11} />}>Live Stream Connected</Badge>}
       />
 
       <Card padded={false}>
         <PanelHeader title="Find Similar Historical Events" right={<Search size={14} style={{ color: "var(--color-text-muted)" }} />} />
+        
+        {/* Live Event Auto-fill Section */}
+        {activeEvents.length > 0 && (
+          <div style={{ padding: "12px 18px", borderBottom: "1px dashed var(--color-border)", background: "var(--color-bg)", display: "flex", gap: 16, alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>Auto-fill from Live Event:</span>
+            <div style={{ width: 300 }}>
+              <Select 
+                value={liveEventId} 
+                onChange={handleSelectLiveEvent} 
+                options={activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor} (${e.id})` }))} 
+              />
+            </div>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Select an active TomTom incident to populate the search fingerprint.</span>
+          </div>
+        )}
+
         <div style={{ padding: 18, display: "grid", gridTemplateColumns: "repeat(5, 1fr) auto", gap: 12, alignItems: "end" }}>
           <Field label="Event Type">
             <div style={{ display: "flex", gap: 6 }}>

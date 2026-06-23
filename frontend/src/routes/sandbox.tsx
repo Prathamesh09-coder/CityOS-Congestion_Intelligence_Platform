@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { FlaskConical, Play, Sparkles, Cloud, Construction, AlertTriangle } from "lucide-react";
+import { FlaskConical, Play, Sparkles, Cloud, Construction, AlertTriangle, Download } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
 import { Card, PanelHeader, Badge, Button, Field, Select, ProgressBar, Gauge, PageHeader } from "@/components/cityos/primitives";
 import { CityMap } from "@/components/cityos/CityMap";
-import { CORRIDORS, ZONES, causeMeta, ACTIVE_EVENTS, JUNCTIONS, CityEvent } from "@/lib/cityos-data";
+import { CORRIDORS, ZONES, causeMeta, ACTIVE_EVENTS, JUNCTIONS, type CityEvent } from "@/lib/cityos-data";
 import { useClosurePrediction, useDurationPrediction } from "../hooks/use-predict";
+import { useQuery } from "@tanstack/react-query";
+import { getDashboardStream } from "@/lib/api";
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
@@ -28,6 +30,42 @@ function Sandbox() {
   const [extra, setExtra] = useState(0);
   const [corridor, setCorridor] = useState("Mysore Road");
   const [zone, setZone] = useState(ZONES[0]);
+  const [liveEventId, setLiveEventId] = useState<string>("");
+
+  const { data: streamData } = useQuery({
+    queryKey: ["dashboardStream"],
+    queryFn: getDashboardStream,
+    refetchInterval: 5000,
+  });
+
+  const activeEvents = streamData?.events || [];
+
+  const handleLoadLiveEvent = (id: string) => {
+    setLiveEventId(id);
+    const evt = activeEvents.find((e: CityEvent) => e.id === id);
+    if (evt) {
+      setCorridor(evt.corridor);
+      setZone(evt.zone || ZONES[0]);
+      setClosure(evt.closure || false);
+      
+      // Reset special conditions
+      setRain(false);
+      setConstruction(false);
+      setAccident(false);
+      
+      // Toggle condition based on cause
+      if (evt.cause === "water_logging") setRain(true);
+      if (evt.cause === "construction") setConstruction(true);
+      if (evt.cause === "accident") setAccident(true);
+      if (evt.cause === "public_event" || evt.cause === "protest" || evt.cause === "procession") {
+        setCrowd(25000);
+      } else {
+        setCrowd(1000);
+      }
+      
+      setHour(new Date().getHours());
+    }
+  };
 
   const predictClosure = useClosurePrediction();
   const predictDuration = useDurationPrediction();
@@ -141,6 +179,22 @@ function Sandbox() {
         {/* LEFT: Controls */}
         <Card padded={false}>
           <PanelHeader title="What-If Scenario Builder" right={<FlaskConical size={14} style={{ color: "var(--color-ai-accent)" }} />} />
+          
+          {/* Live Event Load Section */}
+          {activeEvents.length > 0 && (
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--color-border)", background: "var(--color-bg)", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>Load Live Event into Sandbox:</span>
+                <Badge kind="ai" icon={<Download size={11} />}>Auto-fill</Badge>
+              </div>
+              <Select 
+                value={liveEventId} 
+                onChange={handleLoadLiveEvent} 
+                options={[{ value: "", label: "Select an active incident..." }, ...activeEvents.map((e: CityEvent) => ({ value: e.id, label: `${e.cause.replace(/_/g, " ")} on ${e.corridor}` }))]} 
+              />
+            </div>
+          )}
+
           <div style={{ padding: 18 }}>
             <Field label={`Crowd Size: ${crowd.toLocaleString()}`}>
               <input type="range" min={100} max={100000} step={100} value={crowd} onChange={(e) => setCrowd(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--color-primary)" }} />

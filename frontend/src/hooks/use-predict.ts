@@ -77,7 +77,7 @@ export function useMultimodalPrediction() {
 export function useTrafficPrediction(payload: TrafficPayload, enabled = true) {
   return useQuery<TrafficResponse, Error>({
     // Omit reported_datetime from queryKey to avoid infinite cache busting on every render
-    queryKey: ["trafficPrediction", payload.junction, payload.lat, payload.lng],
+    queryKey: ["trafficPrediction", payload.lat, payload.lng],
     queryFn: () => predictTraffic(payload),
     enabled,
     staleTime: 30000, // 30 seconds
