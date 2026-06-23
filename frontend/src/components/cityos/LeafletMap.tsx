@@ -26,71 +26,7 @@ const CORRIDOR_PATHS = [
   [[13.0416, 77.6248], [13.0084, 77.5906], [13.0371, 77.5255]]
 ];
 
-const PREDEFINED_DIVERSIONS: Record<string, [number, number][]> = {
-  "K R Circle": [
-    [12.9716, 77.5946],
-    [12.9750, 77.5910],
-    [12.9780, 77.5950],
-    [12.9730, 77.5990],
-    [12.9716, 77.5946]
-  ],
-  "SilkBoardJunc": [
-    [12.9176, 77.6244],
-    [12.9150, 77.6300],
-    [12.9100, 77.6200],
-    [12.9220, 77.6150],
-    [12.9176, 77.6244]
-  ],
-  "MekhriCircle": [
-    [13.0084, 77.5906],
-    [13.0120, 77.5850],
-    [13.0180, 77.5920],
-    [13.0050, 77.6000],
-    [13.0084, 77.5906]
-  ],
-  "YeshwanthpuraCircle": [
-    [13.0227, 77.5704],
-    [13.0280, 77.5650],
-    [13.0320, 77.5750],
-    [13.0180, 77.5800],
-    [13.0227, 77.5704]
-  ],
-  "YelhankaCircle": [
-    [13.1007, 77.5963],
-    [13.0950, 77.5900],
-    [13.0900, 77.6050],
-    [13.1050, 77.6000],
-    [13.1007, 77.5963]
-  ],
-  "JalahalliCross": [
-    [13.0371, 77.5255],
-    [13.0320, 77.5300],
-    [13.0420, 77.5350],
-    [13.0450, 77.5200],
-    [13.0371, 77.5255]
-  ],
-  "Nagavara-ORR": [
-    [13.0416, 77.6248],
-    [13.0450, 77.6300],
-    [13.0350, 77.6350],
-    [13.0380, 77.6150],
-    [13.0416, 77.6248]
-  ],
-  "AyyappaTempleJunc": [
-    [12.9785, 77.5332],
-    [12.9730, 77.5380],
-    [12.9820, 77.5420],
-    [12.9850, 77.5280],
-    [12.9785, 77.5332]
-  ],
-  "SatteliteBusStandJunc": [
-    [12.9556, 77.5385],
-    [12.9500, 77.5450],
-    [12.9600, 77.5480],
-    [12.9620, 77.5320],
-    [12.9556, 77.5385]
-  ]
-};
+
 
 function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
@@ -113,15 +49,26 @@ export default function LeafletMap({ events, selectedId, onSelect, showHeatmap =
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   const getRouteForEvent = (e: CityEvent): [number, number][] => {
-    if (PREDEFINED_DIVERSIONS[e.junction]) {
-      return PREDEFINED_DIVERSIONS[e.junction];
+    const { lat, lng, id } = e;
+    // Generate a pseudo-random offset based on the event ID length or character codes
+    // so the diversion route shapes look slightly different but are stable per-event.
+    let seed = 0;
+    if (id) {
+      for (let i = 0; i < id.length; i++) {
+        seed += id.charCodeAt(i);
+      }
     }
-    const { lat, lng } = e;
+    const offset1 = (seed % 10) * 0.0003 + 0.002;
+    const offset2 = (seed % 7) * 0.0004 + 0.003;
+    const offset3 = (seed % 5) * 0.0005 + 0.002;
+    const signX = seed % 2 === 0 ? 1 : -1;
+    const signY = seed % 3 === 0 ? 1 : -1;
+
     return [
       [lat, lng],
-      [lat + 0.003, lng + 0.003],
-      [lat + 0.006, lng],
-      [lat + 0.003, lng - 0.003],
+      [lat + offset1 * signY, lng + offset2 * signX],
+      [lat + (offset1 + offset3) * signY, lng + (offset2 - offset1) * signX],
+      [lat + offset3 * signY, lng - offset2 * signX],
       [lat, lng]
     ];
   };
