@@ -208,7 +208,7 @@ export default function LeafletMap({ events, selectedId, onSelect, showHeatmap =
               >
                 <Tooltip direction="top" offset={[0, -5]} opacity={0.95}>
                   <div style={{ fontSize: 11, fontWeight: 600 }}>
-                    {e.cause.replace(/_/g, " ").toUpperCase()}
+                    {(e.cause || 'Unknown').replace(/_/g, " ").toUpperCase()}
                   </div>
                   <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
                     {e.corridor} · Snap: {e.junction}
