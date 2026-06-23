@@ -127,3 +127,14 @@ export async function predictMultimodal(payload: MultimodalPayload): Promise<Mul
 export async function predictTraffic(payload: TrafficPayload): Promise<TrafficResponse> {
   return callApi<TrafficPayload, TrafficResponse>("predict/traffic", payload);
 }
+
+/**
+ * Dashboard Stream Endpoint Caller
+ */
+export async function getDashboardStream(): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/dashboard/stream`);
+  if (!res.ok) {
+    throw new Error(`API error: ${res.statusText}`);
+  }
+  return await res.json();
+}
