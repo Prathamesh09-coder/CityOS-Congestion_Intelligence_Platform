@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
 import { Card, PanelHeader, Badge, Button, Field, Select, ProgressBar, PageHeader } from "@/components/cityos/primitives";
-import { CORRIDORS, EVENT_CAUSES, ZONES, causeMeta } from "@/lib/cityos-data";
+import { CORRIDORS, EVENT_CAUSES, ZONES } from "@/lib/cityos-data";
+import { useQuery } from "@tanstack/react-query";
+import { predictSimilarity } from "@/lib/api";
 
 export const Route = createFileRoute("/similarity")({
   head: () => ({
@@ -15,29 +17,6 @@ export const Route = createFileRoute("/similarity")({
   component: Similarity,
 });
 
-function generateResults(cause: string, corridor: string, priority: "High" | "Low") {
-  const meta = causeMeta(cause);
-  const rows = Array.from({ length: 8 }).map((_, i) => {
-    const sim = 96 - i * 4;
-    const closure = Math.random() < meta.closurePct / 100;
-    const peak = i % 3 === 0;
-    return {
-      id: `FKID000${(412 + i * 13).toString().padStart(3, "0")}`,
-      sim,
-      cause: meta.label,
-      corridor,
-      priority,
-      closure,
-      duration: meta.avgHrs,
-      status: i % 5 === 0 ? "—" : "closed",
-      peak,
-      officers: 3 + (priority === "High" ? 4 : 0),
-      barricades: closure ? 2 + (priority === "High" ? 2 : 0) : 0,
-    };
-  });
-  return rows;
-}
-
 function Similarity() {
   const [cause, setCause] = useState("vehicle_breakdown");
   const [corridor, setCorridor] = useState("Mysore Road");
@@ -45,10 +24,13 @@ function Similarity() {
   const [priority, setPriority] = useState<"High" | "Low">("High");
   const [type, setType] = useState<"planned" | "unplanned">("unplanned");
 
-  const meta = causeMeta(cause);
-  const rows = generateResults(cause, corridor, priority);
-  const recOff = priority === "High" ? "3–5" : "2–3";
-  const recBar = meta.closurePct > 30 ? "12–18" : "1–2";
+  const { data, isLoading } = useQuery({
+    queryKey: ["similarity", { type, cause, corridor, zone, priority }],
+    queryFn: () => predictSimilarity({ event_type: type, event_cause: cause, corridor, zone, priority }),
+  });
+
+  const rows = data?.results || [];
+  const meta = data?.meta || { count: 0, avg_hrs: 0, closure_pct: 0, rec_off: "", rec_bar: "", label: cause };
 
   return (
     <AppShell>
@@ -112,9 +94,9 @@ function Similarity() {
         <Sparkles size={20} style={{ color: "var(--color-ai-accent)", flexShrink: 0, marginTop: 2 }} />
         <div style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.5 }}>
           Based on <b>{meta.count} similar {meta.label.toLowerCase()} events</b> on {corridor} with <b>{priority}</b> priority,
-          predicted duration is <b style={{ color: "var(--color-ai-accent)" }}>{meta.avgHrs} hrs</b>.
-          Road closure required in <b>{meta.closurePct}%</b> of cases.
-          Recommend <b>{recOff} officers</b> and <b>{recBar} barricades</b>.
+          predicted duration is <b style={{ color: "var(--color-ai-accent)" }}>{meta.avg_hrs} hrs</b>.
+          Road closure required in <b>{meta.closure_pct}%</b> of cases.
+          Recommend <b>{meta.rec_off} officers</b> and <b>{meta.rec_bar} barricades</b>.
         </div>
       </div>
 

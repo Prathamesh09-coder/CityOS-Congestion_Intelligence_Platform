@@ -138,3 +138,77 @@ export async function getDashboardStream(): Promise<any> {
   }
   return await res.json();
 }
+
+export interface SimilarityPayload {
+  event_type: string;
+  event_cause: string;
+  corridor: string;
+  zone: string;
+  priority: string;
+}
+
+export interface SimilarityResult {
+  id: string;
+  sim: number;
+  cause: string;
+  corridor: string;
+  priority: string;
+  closure: boolean;
+  duration: number;
+  status: string;
+  peak: boolean;
+  officers: number;
+  barricades: number;
+}
+
+export interface SimilarityResponse {
+  meta: {
+    count: number;
+    avg_hrs: number;
+    closure_pct: number;
+    rec_off: string;
+    rec_bar: string;
+    label: string;
+  };
+  results: SimilarityResult[];
+}
+
+export async function predictSimilarity(payload: SimilarityPayload): Promise<SimilarityResponse> {
+  return callApi<SimilarityPayload, SimilarityResponse>("predict/similarity", payload);
+}
+
+export interface ResourcePayload {
+  event_id: string;
+  event_cause: string;
+  corridor: string;
+  priority: string;
+  type: string;
+  closure: boolean;
+}
+
+export interface ResourceResponse {
+  recOfficers: number;
+  recBarricades: number;
+  tow: number;
+  marshals: number;
+  emergency: number;
+  closureCrew: number;
+}
+
+export async function predictResources(payload: ResourcePayload): Promise<ResourceResponse> {
+  return callApi<ResourcePayload, ResourceResponse>("predict/resources", payload);
+}
+
+export interface DeployPayload {
+  event_id: string;
+  officers: number;
+  barricades: number;
+  tow: number;
+  marshals: number;
+  emergency: number;
+  closureCrew: number;
+}
+
+export async function deployResources(payload: DeployPayload): Promise<{ status: string; event_id: string; message: string }> {
+  return callApi<DeployPayload, { status: string; event_id: string; message: string }>("action/deploy", payload);
+}

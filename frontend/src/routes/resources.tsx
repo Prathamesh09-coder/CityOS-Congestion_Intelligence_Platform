@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Users, Sparkles, Truck, Construction, Siren, ShieldAlert, MapPin } from "lucide-react";
+import { Users, Sparkles, Truck, Construction, Siren, ShieldAlert, MapPin, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/cityos/AppShell";
-import { Card, PanelHeader, Badge, Gauge, ProgressBar, PageHeader } from "@/components/cityos/primitives";
+import { Card, PanelHeader, Badge, Gauge, ProgressBar, PageHeader, Button } from "@/components/cityos/primitives";
 import { CityMap } from "@/components/cityos/CityMap";
 import { ACTIVE_EVENTS, type CityEvent } from "@/lib/cityos-data";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { predictResources, deployResources } from "@/lib/api";
 
 export const Route = createFileRoute("/resources")({
   head: () => ({
@@ -28,9 +30,43 @@ const RESOURCE_TYPES = [
 function ResourceCmd() {
   const [selected, setSelected] = useState<CityEvent>(ACTIVE_EVENTS[0]);
   const [allocated, setAllocated] = useState({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 });
-  const coverage = Math.min(100, Math.round(((allocated.officers / Math.max(1, selected.recOfficers)) * 60) + ((allocated.barricades / Math.max(1, selected.recBarricades || 1)) * 40)));
+
+  const { data: recs, isLoading } = useQuery({
+    queryKey: ["resources", selected.id],
+    queryFn: () => predictResources({
+      event_id: selected.id,
+      event_cause: selected.cause,
+      corridor: selected.corridor,
+      priority: selected.priority,
+      type: selected.type,
+      closure: selected.closure || false
+    }),
+  });
+
+  const targetOfficers = recs?.recOfficers ?? selected.recOfficers;
+  const targetBarricades = recs?.recBarricades ?? (selected.recBarricades || 1);
+  const targetTow = recs?.tow ?? (selected.cause === "vehicle_breakdown" ? 1 : 0);
+  const targetMarshals = recs?.marshals ?? (selected.type === "planned" ? 4 : 0);
+  const targetEmergency = recs?.emergency ?? (selected.cause === "accident" ? 1 : 0);
+  const targetClosureCrew = recs?.closureCrew ?? (selected.closure ? 1 : 0);
+
+  const coverage = Math.min(100, Math.round(((allocated.officers / Math.max(1, targetOfficers)) * 60) + ((allocated.barricades / Math.max(1, targetBarricades)) * 40)));
   const efficiency = Math.max(0, 100 - Math.abs(coverage - 100));
-  const gap = selected.recOfficers - allocated.officers;
+  const gap = targetOfficers - allocated.officers;
+
+  const deployMut = useMutation({
+    mutationFn: deployResources,
+    onSuccess: () => {
+      setAllocated({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 });
+    }
+  });
+
+  const handleDeploy = () => {
+    deployMut.mutate({
+      event_id: selected.id,
+      ...allocated
+    });
+  };
 
   return (
     <AppShell>
@@ -46,7 +82,7 @@ function ResourceCmd() {
           <PanelHeader title="Active Events" />
           <div style={{ overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             {ACTIVE_EVENTS.map((e) => (
-              <button key={e.id} onClick={() => { setSelected(e); setAllocated({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 }); }} style={{
+              <button key={e.id} onClick={() => { setSelected(e); setAllocated({ officers: 0, barricades: 0, tow: 0, marshals: 0, emergency: 0, closureCrew: 0 }); deployMut.reset(); }} style={{
                 textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer",
                 background: selected.id === e.id ? "var(--color-primary-light)" : "var(--color-surface)",
                 border: selected.id === e.id ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
@@ -98,12 +134,12 @@ function ResourceCmd() {
               Event: <b style={{ color: "var(--color-text-primary)" }}>{selected.cause.replace(/_/g, " ")}</b> on {selected.corridor}
             </div>
 
-            <RecRow icon={Users} label="Officers Required" value={selected.recOfficers} color="var(--color-primary)" />
-            <RecRow icon={ShieldAlert} label="Barricades" value={selected.recBarricades} color="var(--color-critical)" />
-            <RecRow icon={Truck} label="Tow Vehicles" value={selected.cause === "vehicle_breakdown" ? 1 : 0} color="var(--color-warning)" />
-            <RecRow icon={Users} label="Traffic Marshals" value={selected.type === "planned" ? 4 : 0} color="var(--color-success)" />
-            <RecRow icon={Siren} label="Emergency Teams" value={selected.cause === "accident" ? 1 : 0} color="var(--color-critical)" />
-            <RecRow icon={Construction} label="Closure Crew" value={selected.closure ? 1 : 0} color="var(--color-critical)" />
+            <RecRow icon={Users} label="Officers Required" value={targetOfficers} color="var(--color-primary)" />
+            <RecRow icon={ShieldAlert} label="Barricades" value={targetBarricades} color="var(--color-critical)" />
+            <RecRow icon={Truck} label="Tow Vehicles" value={targetTow} color="var(--color-warning)" />
+            <RecRow icon={Users} label="Traffic Marshals" value={targetMarshals} color="var(--color-success)" />
+            <RecRow icon={Siren} label="Emergency Teams" value={targetEmergency} color="var(--color-critical)" />
+            <RecRow icon={Construction} label="Closure Crew" value={targetClosureCrew} color="var(--color-critical)" />
 
             <div style={{ height: 1, background: "var(--color-border)", margin: "4px 0" }} />
 
@@ -143,6 +179,12 @@ function ResourceCmd() {
                 <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>HSR Layout PS</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: 11 }}>· 2.4 km</span>
               </div>
+            </div>
+            
+            <div style={{ marginTop: "auto", paddingTop: 16 }}>
+              <Button style={{ width: "100%" }} onClick={handleDeploy} disabled={deployMut.isPending || deployMut.isSuccess || coverage === 0}>
+                {deployMut.isPending ? "Deploying..." : deployMut.isSuccess ? <><CheckCircle2 size={16} /> Deployed & Resolved</> : "Deploy & Resolve Event"}
+              </Button>
             </div>
           </div>
         </Card>
